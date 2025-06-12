@@ -1,0 +1,12 @@
+name: Self invocation v0.0.1
+
+on:
+  workflow_dispatch:
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: write
+    steps:
+      - uses: kindkitchen/genv@0.0.1
