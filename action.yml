@@ -1,0 +1,8 @@
+name: 'Awesome Action'
+description: 'Prints a message saying how awesome it is.'
+author: 'kindkitchen'
+runs:
+  using: 'composite'
+  steps:
+    - shell: bash
+      run: echo 'hi, im awesome action!'
