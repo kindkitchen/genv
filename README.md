@@ -5,5 +5,5 @@ This GitHub Action prints a motivational message.
 ## Usage
 
 ```yaml
-- uses: kindkitchen/genv@v0.0.9
+- uses: kindkitchen/genv@v0.0.10
 ```
