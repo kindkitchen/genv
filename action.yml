@@ -17,4 +17,4 @@ runs:
       env:
         DOTENV_CONTENT: ${{ inputs.dotenv_content }}
         DOTENV_PATH: ${{ inputs.dotenv_path }}
-      run: echo $DOTENV_CONTENT >> $DOTENV_PATH
+      run: echo "$DOTENV_CONTENT" >> $DOTENV_PATH
