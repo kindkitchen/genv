@@ -1,4 +1,4 @@
-name: Self invocation v0.0.7
+name: Self invocation v0.0.8
 
 on:
   push:
@@ -13,11 +13,10 @@ jobs:
       contents: write
     steps:
       - name: Self invocation
-        uses: kindkitchen/genv@v0.0.7
+        uses: kindkitchen/genv@v0.0.8
         with:
           dotenv_content: |
-            echo -e """/
-            HELLO=Hello, world!
+            echo -e """HELLO=Hello, world!
             OK=ok, google"""
       - name: Assert file was written
         run: >
