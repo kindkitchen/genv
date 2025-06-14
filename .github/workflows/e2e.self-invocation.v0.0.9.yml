@@ -1,4 +1,4 @@
-name: Self invocation v0.0.8
+name: Self invocation v0.0.9
 
 on:
   push:
@@ -13,16 +13,21 @@ jobs:
       contents: write
     steps:
       - name: Self invocation
-        uses: kindkitchen/genv@v0.0.8
+        uses: kindkitchen/genv@v0.0.9
         with:
           dotenv_content: |
             echo -e """HELLO=Hello, world!
-            OK=ok, google"""
+              OK=ok, google"""
       - name: Assert file was written
         run: >
           [ -f ./.env ] || { echo "File not found"; exit 1; }
       - name: Debug content
-        run: cat ./.env
+        run: |
+          echo file's content:
+          cat ./.env
+          echo string literal:
+          echo echo -e """HELLO=Hello, world!
+            OK=ok, google"""
       - name: Assert file's content
         run: >
           [ "$(cat ./.env)" = "$(echo -e "HELLO=Hello, world!\nOK=ok, google")" ] || exit 1
