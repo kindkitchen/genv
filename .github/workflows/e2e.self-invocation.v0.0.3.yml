@@ -21,6 +21,8 @@ jobs:
       - name: Assert file was written
         run: >
           [ -f ./.env ] || { echo "File not found"; exit 1; }
+      - name: Debug content
+        run: cat ./.env
       - name: Assert file's content
         run: >
           [ "$(cat ./.env)" = "$(echo -e "HELLO=Hello, world!\nOK=ok, google")" ] || exit 1
