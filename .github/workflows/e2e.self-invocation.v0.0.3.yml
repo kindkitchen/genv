@@ -16,8 +16,9 @@ jobs:
         uses: kindkitchen/genv@v0.0.3
         with:
           dotenv_content: |
+            echo """/
             HELLO=Hello, world!
-            OK=ok, google
+            OK=ok, google"""
       - name: Assert file was written
         run: >
           [ -f ./.env ] || { echo "File not found"; exit 1; }
