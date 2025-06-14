@@ -1,8 +1,20 @@
 name: "Awesome Action"
 description: "Prints a message saying how awesome it is."
 author: "kindkitchen"
+inputs:
+  dotenv_path:
+    description: "The path, where generated dotenv file will be placed (the default is ./.env)"
+    default: ./.env
+  dotenv_content:
+    description: "The literal content of the dotenv file. Will be placed at the bottom of generated file."
+    required: false
+
 runs:
   using: "composite"
   steps:
-    - shell: bash
-      run: echo 'hi, im awesome action!'
+    - name: Append dotenv content to ${{ inputs.dotenv_path }}
+      shell: bash
+      env:
+        DOTENV_CONTENT: ${{ inputs.dotenv_content }}
+        DOTENV_PATH: ${{ inputs.dotenv_path }}
+      run: echo $DOTENV_CONTENT >> $DOTENV_PATH
