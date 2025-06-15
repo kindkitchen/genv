@@ -1,16 +1,38 @@
-name: "Awesome Action"
-description: "Prints a message saying how awesome it is."
-author: "kindkitchen"
+name: Generate dotenv
+description: Utilize github vars and secrets to create dotenv file from them following instructions
+author: kindkitchen
 inputs:
+  vars_obj:
+    description: "In most cases may be toJson(vars). Or any other key-value json string"
+  secrets_obj:
+    description: "In most cases may be toJson(secrets). Or any other key-value json stringO"
   dotenv_path:
-    description: "The path, where generated dotenv file will be placed (the default is ./.env)"
+    description: The path, where generated dotenv file will be placed (the default is ./.env)
     default: ./.env
   dotenv_content:
-    description: "The literal content of the dotenv file. Will be placed at the bottom of generated file."
+    description: The literal content of the dotenv file. Will be placed at the bottom of generated file.
+    required: false
+  vars_include_pattern:
+    description: 'Regex by which the keys from vars will be included. (default: "*")'
+    default: "*"
+  vars_exclude_pattern:
+    description: "Regex by which the keys from vars will not be included. Will override `include_vars_pattern` on conflict. (default: null)"
+    required: false
+  secrets_include_pattern:
+    description: 'Regex by which the keys from secrets will be included. (default: "*")'
+    default: "*"
+  secrets_exclude_pattern:
+    description: "Regex by which the keys from secrets will not be included. Will override `include_secrets_pattern` on conflict. (default: null)"
+    required: false
+  content_from_vars_include_pattern:
+    description: "Regex by which the keys from vars will be treated as part of content (many lines with variables) and these contents will be attached. (default: null)"
+    required: false
+  content_from_secrets_include_pattern:
+    description: "Regex by which the keys from secrets will be treated as part of content (many lines with variables) and these contents will be attached. (default: null)"
     required: false
 
 runs:
-  using: "composite"
+  using: composite
   steps:
     - name: Append dotenv content to ${{ inputs.dotenv_path }}
       shell: bash
