@@ -4,14 +4,16 @@ author: kindkitchen
 inputs:
   vars_obj:
     description: "In most cases may be toJson(vars). Or any other key-value json string"
+    default: "{}"
   secrets_obj:
     description: "In most cases may be toJson(secrets). Or any other key-value json stringO"
+    default: "{}"
   dotenv_path:
     description: The path, where generated dotenv file will be placed (the default is ./.env)
     default: ./.env
   dotenv_content:
     description: The literal content of the dotenv file. Will be placed at the bottom of generated file.
-    required: false
+    default: ""
   vars_include_pattern:
     description: 'Regex by which the keys from vars will be included. (default: "*")'
     default: "*"
@@ -26,17 +28,20 @@ inputs:
     required: false
   content_from_vars_include_pattern:
     description: "Regex by which the keys from vars will be treated as part of content (many lines with variables) and these contents will be attached. (default: null)"
-    required: false
+    default: ""
   content_from_secrets_include_pattern:
     description: "Regex by which the keys from secrets will be treated as part of content (many lines with variables) and these contents will be attached. (default: null)"
-    required: false
+    default: ""
 
 runs:
   using: composite
   steps:
-    - name: Append dotenv content to ${{ inputs.dotenv_path }}
+    - id: merge_vars_with_content
+      name: "1. Merge contents of batch-vars"
       shell: bash
       env:
-        DOTENV_CONTENT: ${{ inputs.dotenv_content }}
+        JSON_KEY_CONTENT: ${{ inputs.vars_obj }}
         DOTENV_PATH: ${{ inputs.dotenv_path }}
-      run: echo "$DOTENV_CONTENT" >> $DOTENV_PATH
+        INCLUDE: ${{ inputs.content_from_vars_include_pattern }}
+      run: |
+        echo "$JSON_KEY_CONTENT" | jq -r --arg include "$INCLUDE" 'to_entries | map(select(.key | test($include))) | .[].value' >> $DOTENV_PATH

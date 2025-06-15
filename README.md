@@ -25,7 +25,7 @@ may pass it whenever you need.
 
 ```yaml
 # TODO complete this part of the documentation (it is the most important one)
-- uses: kindkitchen/genv@v0.0.12
+- uses: kindkitchen/genv@v0.1.0
 ```
 
 #### May be you not need this action

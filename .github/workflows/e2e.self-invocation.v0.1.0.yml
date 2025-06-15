@@ -1,0 +1,32 @@
+name: e2e v0.1.0
+
+on:
+  push:
+    tags:
+      - v0.1.0
+    branches:
+      - main
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: write
+    steps:
+      - name: Self invocation
+        uses: kindkitchen/genv@v0.1.0
+        with:
+          vars_obj: '{ "DEMO_INCLUDE": "HELLO=world\nOK=google", "DENO": "BEST=deno\nTHE_BEST=deno2" }'
+          content_from_vars_include_pattern: "_INCLUDE$"
+      - name: Assert file was written
+        run: >
+          [ -f ./.env ] || { echo "File not found"; exit 1; }
+      - name: Debug content
+        run: |
+          echo "actual file's content:"
+          cat ./.env
+          echo "expected:"
+          echo -e "HELLO=world\nOK=google"
+      - name: Assert file's content
+        run: >
+          [ "$(cat ./.env)" = "$(echo -e "HELLO=world\nOK=google")" ] || exit 1
