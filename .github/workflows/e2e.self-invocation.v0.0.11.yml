@@ -1,0 +1,32 @@
+name: Self invocation v0.0.11
+
+on:
+  push:
+    branches:
+      - 2-minimal-requirements-to-consume-gh-varssecrets
+      - main
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: write
+    steps:
+      - name: Self invocation
+        uses: kindkitchen/genv@v0.0.11
+        with:
+          dotenv_content: |
+            HELLO=Hello, world!
+            OK=ok, google
+      - name: Assert file was written
+        run: >
+          [ -f ./.env ] || { echo "File not found"; exit 1; }
+      - name: Debug content
+        run: |
+          echo "file's content:"
+          cat ./.env
+          echo "string literal:"
+          echo -e "HELLO=Hello, world!\nOK=ok, google"
+      - name: Assert file's content
+        run: >
+          [ "$(cat ./.env)" = "$(echo -e "HELLO=Hello, world!\nOK=ok, google")" ] || exit 1
