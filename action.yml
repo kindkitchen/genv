@@ -36,11 +36,12 @@ inputs:
 runs:
   using: composite
   steps:
-    - run: echo TODO
+    - id: merge_vars_with_content
+      name: "1. Merge contents of batch-vars"
       shell: bash
-
-# echo $VARS_CONTENT > vars_content.json
-# cat vars_content.json | jq -r 'to_entries | map(select(.key | test("[A-Z_]+"))) | .[] | "\(.key)=\(.value | @json)\n"' > dotenv.txt
-# echo $SECRETS_CONTENT | jq -r '.SECRETS_CONTENT' > secrets_content.json
-# cat secrets_content.json | jq -r 'to_entries | map(select(.key | test("[A-Z_]+"))) | .[] | "\(.key)=\(.value | @json)\n"' >> dotenv.txt
-# cp dotenv.txt $FILE_NAME
+      env:
+        JSON_KEY_CONTENT: ${{ inputs.vars_obj }}
+        DOTENV_PATH: ${{ inputs.dotenv_path }}
+        INCLUDE: ${{ inputs.content_from_vars_include_pattern }}
+      run: |
+        echo "$JSON_KEY_CONTENT" | jq -r --arg include "$INCLUDE" 'to_entries | map(select(.key | test($include))) | .[].value' >> $DOTENV_PATH
