@@ -4,14 +4,16 @@ author: kindkitchen
 inputs:
   vars_obj:
     description: "In most cases may be toJson(vars). Or any other key-value json string"
+    default: "{}"
   secrets_obj:
     description: "In most cases may be toJson(secrets). Or any other key-value json stringO"
+    default: "{}"
   dotenv_path:
     description: The path, where generated dotenv file will be placed (the default is ./.env)
     default: ./.env
   dotenv_content:
     description: The literal content of the dotenv file. Will be placed at the bottom of generated file.
-    required: false
+    default: ""
   vars_include_pattern:
     description: 'Regex by which the keys from vars will be included. (default: "*")'
     default: "*"
@@ -26,17 +28,19 @@ inputs:
     required: false
   content_from_vars_include_pattern:
     description: "Regex by which the keys from vars will be treated as part of content (many lines with variables) and these contents will be attached. (default: null)"
-    required: false
+    default: ""
   content_from_secrets_include_pattern:
     description: "Regex by which the keys from secrets will be treated as part of content (many lines with variables) and these contents will be attached. (default: null)"
-    required: false
+    default: ""
 
 runs:
   using: composite
   steps:
-    - name: Append dotenv content to ${{ inputs.dotenv_path }}
+    - run: echo TODO
       shell: bash
-      env:
-        DOTENV_CONTENT: ${{ inputs.dotenv_content }}
-        DOTENV_PATH: ${{ inputs.dotenv_path }}
-      run: echo "$DOTENV_CONTENT" >> $DOTENV_PATH
+
+# echo $VARS_CONTENT > vars_content.json
+# cat vars_content.json | jq -r 'to_entries | map(select(.key | test("[A-Z_]+"))) | .[] | "\(.key)=\(.value | @json)\n"' > dotenv.txt
+# echo $SECRETS_CONTENT | jq -r '.SECRETS_CONTENT' > secrets_content.json
+# cat secrets_content.json | jq -r 'to_entries | map(select(.key | test("[A-Z_]+"))) | .[] | "\(.key)=\(.value | @json)\n"' >> dotenv.txt
+# cp dotenv.txt $FILE_NAME
