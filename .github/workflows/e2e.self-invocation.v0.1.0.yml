@@ -3,7 +3,7 @@ name: e2e v0.1.0
 on:
   push:
     tags:
-      - v0.
+      - v0.1.0
     branches:
       - main
 jobs:
