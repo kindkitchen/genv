@@ -19,13 +19,13 @@ inputs:
     default: ".*"
   vars_exclude_pattern:
     description: "Regex by which the keys from vars will not be included. Will override `include_vars_pattern` on conflict. (default: null)"
-    required: false
+    default: "NOTING_this_is_hardcoded_impossible_pattern{10}"
   secrets_include_pattern:
     description: 'Regex by which the keys from secrets will be included. (default: "*")'
     default: ".*"
   secrets_exclude_pattern:
     description: "Regex by which the keys from secrets will not be included. Will override `include_secrets_pattern` on conflict. (default: null)"
-    required: false
+    default: "NOTING_this_is_hardcoded_impossible_pattern{10}"
   content_from_vars_include_pattern:
     description: "Regex by which the keys from vars will be treated as part of content (many lines with variables) and these contents will be attached. (default: null)"
     default: ""
