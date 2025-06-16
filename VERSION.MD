@@ -1,6 +1,6 @@
-# 0.1.1
+# 0.1.2
 
 - declared params
 - first step - merge batch-vars values
-- second step - mock (TODO)
+- second step - merge vars (key=value)
 - third step - merge batch-secrets values
