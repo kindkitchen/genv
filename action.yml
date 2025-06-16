@@ -83,3 +83,10 @@ runs:
         echo "$JSON_KEY_VALUE" | jq -r --arg include "$INCLUDE" --arg exclude "$EXCLUDE" \
           'to_entries | map(select(.key | test($include)) | select(.key | test($exclude) | not)) | .[] | "\(.key)=\(.value | @json)"' \
           >> $DOTENV_PATH
+
+    - name: "5. Append literal dotenv content to ${{ inputs.dotenv_path }}"
+      shell: bash
+      env:
+        DOTENV_CONTENT: ${{ inputs.dotenv_content }}
+        DOTENV_PATH: ${{ inputs.dotenv_path }}
+      run: echo "$DOTENV_CONTENT" >> $DOTENV_PATH
