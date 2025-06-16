@@ -60,7 +60,7 @@ runs:
           >> $DOTENV_PATH
 
     - id: merge_secrets_with_content
-      name: "1. Merge contents of batch-secrets"
+      name: "3. Merge contents of batch-secrets"
       shell: bash
       env:
         JSON_KEY_CONTENT: ${{ inputs.secrets_obj }}
