@@ -44,4 +44,18 @@ runs:
         DOTENV_PATH: ${{ inputs.dotenv_path }}
         INCLUDE: ${{ inputs.content_from_vars_include_pattern }}
       run: |
-        echo "$JSON_KEY_CONTENT" | jq -r --arg include "$INCLUDE" 'to_entries | map(select(.key | test($include))) | .[].value' >> $DOTENV_PATH
+        echo "$JSON_KEY_CONTENT" | jq -r --arg include "$INCLUDE" \
+          'to_entries | map(select(.key | test($include))) | .[].value' \
+          >> $DOTENV_PATH
+
+    - id: merge_vars_with_kv
+      name: "2. Merge key=value from vars"
+      shell: bash
+      env:
+        DOTENV_PATH: ${{ inputs.dotenv_path }}
+        JSON_KEY_VALUE: ${{ inputs.vars_obj }}
+        INCLUDE: ${{ inputs.vars_include_pattern }}
+      run: |
+        echo "$JSON_KEY_CONTENT" | jq -r --arg include "$INCLUDE" \
+          'to_entries | map(select(.key | test($include))) | | .[] | "\(.key)=\(.value | @json)"' \
+          >> $DOTENV_PATH
