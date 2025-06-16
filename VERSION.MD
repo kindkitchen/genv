@@ -6,9 +6,3 @@
 - third step - merge batch-secrets values
 - fourth step - merge secrets (key=value)
 - fifth step - append literal content
-
----
-
-# TODO
-
-- documentation about passing multiline content (example)
