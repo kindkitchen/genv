@@ -15,17 +15,16 @@ jobs:
     steps:
       - name: Self invocation
         uses: kindkitchen/genv@v0.1.5
-        env:
-          DOTENV_CONTENT: |
-            FIRST=first
-            SECOND=second
         with:
           vars_obj: '{ "HELLO": "world" }'
           secrets_obj: '{ "CONFIG": "NAME=king", "SUDO_KEY": "alahamora", "DOOM": "boom!" }'
           content_from_secrets_include_pattern: "^CONFIG$"
           secrets_include_pattern: "DO"
           secrets_exclude_pattern: "DOOM"
-          dotenv_content: ${{ fromJson(toJson(env.DOTENV_CONTENT)) }}
+          dotenv_content: |
+            "LITERAL=literal\n
+            LITERAL_2=literal_2\n
+            HELLO=${{ toJson('{ "OK": "google" }').OK }}"
 
       - name: Assert file was written
         run: >
