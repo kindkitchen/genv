@@ -1,0 +1,36 @@
+name: e2e v0.1.4
+
+on:
+  push:
+    tags:
+      - v0.1.4
+    branches:
+      - main
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: write
+    steps:
+      - name: Self invocation
+        uses: kindkitchen/genv@v0.1.4
+        with:
+          vars_obj: '{ "HELLO": "world" }'
+          secrets_obj: '{ "CONFIG": "NAME=king", "SUDO_KEY": "alahamora", "DOOM": "boom!" }'
+          content_from_secrets_include_pattern: "^CONFIG$"
+          secrets_include_pattern: "DO"
+          secrets_exclude_pattern: "DOOM"
+
+      - name: Assert file was written
+        run: >
+          [ -f ./.env ] || { echo "File not found"; exit 1; }
+      - name: Debug content
+        run: |
+          echo "actual file's content:"
+          cat ./.env
+          echo "expected:"
+          echo -e "HELLO=\"world\"\nNAME=king\nSUDO_KEY=\"alahamora\""
+      - name: Assert file's content
+        run: >
+          [ "$(cat ./.env)" = "$(echo -e "HELLO=\"world\"\nNAME=king\nSUDO_KEY=\"alahamora\"")" ] || exit 1

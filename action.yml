@@ -16,16 +16,16 @@ inputs:
     default: ""
   vars_include_pattern:
     description: 'Regex by which the keys from vars will be included. (default: "*")'
-    default: "*"
+    default: ".*"
   vars_exclude_pattern:
     description: "Regex by which the keys from vars will not be included. Will override `include_vars_pattern` on conflict. (default: null)"
-    required: false
+    default: "NOTING_this_is_hardcoded_impossible_pattern{10}"
   secrets_include_pattern:
     description: 'Regex by which the keys from secrets will be included. (default: "*")'
-    default: "*"
+    default: ".*"
   secrets_exclude_pattern:
     description: "Regex by which the keys from secrets will not be included. Will override `include_secrets_pattern` on conflict. (default: null)"
-    required: false
+    default: "NOTING_this_is_hardcoded_impossible_pattern{10}"
   content_from_vars_include_pattern:
     description: "Regex by which the keys from vars will be treated as part of content (many lines with variables) and these contents will be attached. (default: null)"
     default: ""
@@ -38,6 +38,7 @@ runs:
   steps:
     - id: merge_vars_with_content
       name: "1. Merge contents of batch-vars"
+      if: ${{ inputs.content_from_vars_include_pattern != '' }}
       shell: bash
       env:
         JSON_KEY_CONTENT: ${{ inputs.vars_obj }}
@@ -60,7 +61,8 @@ runs:
           >> $DOTENV_PATH
 
     - id: merge_secrets_with_content
-      name: "1. Merge contents of batch-secrets"
+      name: "3. Merge contents of batch-secrets"
+      if: ${{ inputs.content_from_secrets_include_pattern != '' }}
       shell: bash
       env:
         JSON_KEY_CONTENT: ${{ inputs.secrets_obj }}
@@ -68,3 +70,16 @@ runs:
         INCLUDE: ${{ inputs.content_from_secrets_include_pattern }}
       run: |
         echo "$JSON_KEY_CONTENT" | jq -r --arg include "$INCLUDE" 'to_entries | map(select(.key | test($include))) | .[].value' >> $DOTENV_PATH
+
+    - id: merge_secrets_with_kv
+      name: "4. Merge key=value from secrets"
+      shell: bash
+      env:
+        DOTENV_PATH: ${{ inputs.dotenv_path }}
+        JSON_KEY_VALUE: ${{ inputs.secrets_obj }}
+        INCLUDE: ${{ inputs.secrets_include_pattern }}
+        EXCLUDE: ${{ inputs.secrets_exclude_pattern }}
+      run: |
+        echo "$JSON_KEY_VALUE" | jq -r --arg include "$INCLUDE" --arg exclude "$EXCLUDE" \
+          'to_entries | map(select(.key | test($include)) | select(.key | test($exclude) | not)) | .[] | "\(.key)=\(.value | @json)"' \
+          >> $DOTENV_PATH
