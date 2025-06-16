@@ -30,7 +30,7 @@ jobs:
           echo "actual file's content:"
           cat ./.env
           echo "expected:"
-          echo -e "HELLO=world\nNAME=king\nSUDO_KEY=\"alahamora\""
+          echo -e "HELLO=\"world\"\nNAME=king\nSUDO_KEY=\"alahamora\""
       - name: Assert file's content
         run: >
-          [ "$(cat ./.env)" = "$(echo -e "HELLO=world\nNAME=king\nSUDO_KEY=\"alahamora\"")" ] || exit 1
+          [ "$(cat ./.env)" = "$(echo -e "HELLO=\"world\"\nNAME=king\nSUDO_KEY=\"alahamora\"")" ] || exit 1
