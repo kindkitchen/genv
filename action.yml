@@ -38,6 +38,7 @@ runs:
   steps:
     - id: merge_vars_with_content
       name: "1. Merge contents of batch-vars"
+      if: ${{ inputs.content_from_vars_include_pattern != '' }}
       shell: bash
       env:
         JSON_KEY_CONTENT: ${{ inputs.vars_obj }}
@@ -61,6 +62,7 @@ runs:
 
     - id: merge_secrets_with_content
       name: "3. Merge contents of batch-secrets"
+      if: ${{ inputs.content_from_secrets_include_pattern != '' }}
       shell: bash
       env:
         JSON_KEY_CONTENT: ${{ inputs.secrets_obj }}
@@ -70,7 +72,7 @@ runs:
         echo "$JSON_KEY_CONTENT" | jq -r --arg include "$INCLUDE" 'to_entries | map(select(.key | test($include))) | .[].value' >> $DOTENV_PATH
 
     - id: merge_secrets_with_kv
-      name: "2. Merge key=value from secrets"
+      name: "4. Merge key=value from secrets"
       shell: bash
       env:
         DOTENV_PATH: ${{ inputs.dotenv_path }}
