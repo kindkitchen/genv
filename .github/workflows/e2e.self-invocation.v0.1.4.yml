@@ -1,9 +1,9 @@
-name: e2e v0.1.3
+name: e2e v0.1.4
 
 on:
   push:
     tags:
-      - v0.1.3
+      - v0.1.4
     branches:
       - main
 jobs:
@@ -14,7 +14,7 @@ jobs:
       contents: write
     steps:
       - name: Self invocation
-        uses: kindkitchen/genv@v0.1.3
+        uses: kindkitchen/genv@v0.1.4
         with:
           vars_obj: '{ "HELLO": "world" }'
           secrets_obj: '{ "CONFIG": "NAME=king", "SUDO_KEY": "alahamora", "DOOM": "boom!" }'
