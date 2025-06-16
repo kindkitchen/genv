@@ -1,4 +1,4 @@
-# 0.1.5
+# 1.0.0
 
 - declared params
 - first step - merge batch-vars values
