@@ -18,7 +18,7 @@ jobs:
         with:
           vars_obj: '{ "HELLO": "world" }'
           secrets_obj: '{ "CONFIG": "NAME=king", "SUDO_KEY": "alahamora", "DOOM": "boom!" }'
-          content_from_secrets_include_pattern: "^CONFIG$"
+          content_from_secrets_include_pattern: "^CONFIG\\$"
           secrets_include_pattern: "DO"
           secrets_exclude_pattern: "DOOM"
 
