@@ -57,6 +57,6 @@ runs:
         INCLUDE: ${{ inputs.vars_include_pattern }}
         EXCLUDE: ${{ inputs.vars_exclude_pattern }}
       run: |
-        echo "$JSON_KEY_CONTENT" | jq -r --arg include "$INCLUDE" --arg exclude "$EXCLUDE" \
+        echo "$JSON_KEY_VALUE" | jq -r --arg include "$INCLUDE" --arg exclude "$EXCLUDE" \
           'to_entries | map(select(.key | test($include)) | select(.key | test($exclude) | not)) | .[] | "\(.key)=\(.value | @json)"' \
           >> $DOTENV_PATH
