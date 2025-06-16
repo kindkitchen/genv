@@ -15,15 +15,17 @@ jobs:
     steps:
       - name: Self invocation
         uses: kindkitchen/genv@v0.1.5
+        env:
+          DOTENV_CONTENT: |
+            LITERAL=literal
+            LITERAL_2=literal_2
         with:
           vars_obj: '{ "HELLO": "world" }'
           secrets_obj: '{ "CONFIG": "NAME=king", "SUDO_KEY": "alahamora", "DOOM": "boom!" }'
           content_from_secrets_include_pattern: "^CONFIG$"
           secrets_include_pattern: "DO"
           secrets_exclude_pattern: "DOOM"
-          dotenv_content: |
-            LITERAL=literal
-            LITERAL_2=literal_2
+          dotenv_content: ${{ env.DOTENV_CONTENT }}
 
       - name: Assert file was written
         run: >
