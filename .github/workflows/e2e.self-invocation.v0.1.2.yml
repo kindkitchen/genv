@@ -29,7 +29,7 @@ jobs:
           echo "actual file's content:"
           cat ./.env
           echo "expected:"
-          echo -e "HELLO=world\nOK=google\nDENO=best"
+          echo -e "HELLO=world\nOK=google\nDENO=\"best\""
       - name: Assert file's content
         run: >
-          [ "$(cat ./.env)" = "$(echo -e "HELLO=world\nOK=google\nDENO=best")" ] || exit 1
+          [ "$(cat ./.env)" = "$(echo -e "HELLO=world\nOK=google\nDENO=\"best\"")" ] || exit 1
