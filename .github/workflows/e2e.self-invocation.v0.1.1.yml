@@ -18,7 +18,7 @@ jobs:
         with:
           vars_obj: '{ "DEMO_INCLUDE": "HELLO=vars\nOK=google", "DENO": "BEST=deno\nTHE_BEST=deno2" }'
           content_from_vars_include_pattern: "_INCLUDE$"
-          secrets_obj: '{ "DEMO_INCLUDE": "HELLO=secrets\nOK=google", "DENO": "BEST=deno\nTHE_BEST=deno2" }'
+          secrets_obj: '{ "DEMO_INCLUDE": "HELLO=secrets\n", "DENO": "BEST=deno\nTHE_BEST=deno2" }'
           content_from_secrets_include_pattern: "_INCLUDE$"
       - name: Assert file was written
         run: >
@@ -28,7 +28,7 @@ jobs:
           echo "actual file's content:"
           cat ./.env
           echo "expected:"
-          echo -e "HELLO=world\nOK=google"
+          echo -e "HELLO=vars\nOK=google\nHELLO=secrets\n"
       - name: Assert file's content
         run: >
-          [ "$(cat ./.env)" = "$(echo -e "HELLO=vars\nOK=google\nHELLO=secrets")" ] || exit 1
+          [ "$(cat ./.env)" = "$(echo -e "HELLO=vars\nOK=google\nHELLO=secrets\n")" ] || exit 1
