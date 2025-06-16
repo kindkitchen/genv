@@ -56,7 +56,7 @@ runs:
         EXCLUDE: ${{ inputs.vars_exclude_pattern }}
       run: |
         echo "$JSON_KEY_CONTENT" | jq -r --arg include "$INCLUDE" --arg exclude "$EXCLUDE" \
-          'to_entries | map(select(.key | test($include)) | select(.key | test($exclude) | not)) | | .[] | "\(.key)=\(.value | @json)"' \
+          'to_entries | map(select(.key | test($include)) | select(.key | test($exclude) | not)) | .[] | "\(.key)=\(.value | @json)"' \
           >> $DOTENV_PATH
 
     - id: merge_secrets_with_content
