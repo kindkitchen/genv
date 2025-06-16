@@ -22,9 +22,8 @@ jobs:
           secrets_include_pattern: "DO"
           secrets_exclude_pattern: "DOOM"
           dotenv_content: |
-            "LITERAL=literal\n
-            LITERAL_2=literal_2\n
-            HELLO=${{ toJson('{ "OK": "google" }').OK }}"
+            LITERAL=literal
+            LITERAL_2=literal_2
 
       - name: Assert file was written
         run: >
