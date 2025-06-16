@@ -68,3 +68,16 @@ runs:
         INCLUDE: ${{ inputs.content_from_secrets_include_pattern }}
       run: |
         echo "$JSON_KEY_CONTENT" | jq -r --arg include "$INCLUDE" 'to_entries | map(select(.key | test($include))) | .[].value' >> $DOTENV_PATH
+
+    - id: merge_secrets_with_kv
+      name: "2. Merge key=value from secrets"
+      shell: bash
+      env:
+        DOTENV_PATH: ${{ inputs.dotenv_path }}
+        JSON_KEY_VALUE: ${{ inputs.secrets_obj }}
+        INCLUDE: ${{ inputs.secrets_include_pattern }}
+        EXCLUDE: ${{ inputs.secrets_exclude_pattern }}
+      run: |
+        echo "$JSON_KEY_VALUE" | jq -r --arg include "$INCLUDE" --arg exclude "$EXCLUDE" \
+          'to_entries | map(select(.key | test($include)) | select(.key | test($exclude) | not)) | .[] | "\(.key)=\(.value | @json)"' \
+          >> $DOTENV_PATH
