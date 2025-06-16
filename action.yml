@@ -45,3 +45,19 @@ runs:
         INCLUDE: ${{ inputs.content_from_vars_include_pattern }}
       run: |
         echo "$JSON_KEY_CONTENT" | jq -r --arg include "$INCLUDE" 'to_entries | map(select(.key | test($include))) | .[].value' >> $DOTENV_PATH
+    - id: merge_vars_with_kv
+      name: "2. Merge key=value from vars"
+      shell: bash
+      env:
+        DOTENV_PATH: ${{ inputs.dotenv_path }}
+      run: echo TODO
+
+    - id: merge_secrets_with_content
+      name: "1. Merge contents of batch-secrets"
+      shell: bash
+      env:
+        JSON_KEY_CONTENT: ${{ inputs.secrets_obj }}
+        DOTENV_PATH: ${{ inputs.dotenv_path }}
+        INCLUDE: ${{ inputs.content_from_secrets_include_pattern }}
+      run: |
+        echo "$JSON_KEY_CONTENT" | jq -r --arg include "$INCLUDE" 'to_entries | map(select(.key | test($include))) | .[].value' >> $DOTENV_PATH
