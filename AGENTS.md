@@ -18,4 +18,12 @@ project:
 - the github action itself should be as possible thin and fast (that's why it's fully bash scripted)
 - current justfile is used internally and is not intended to be part or dependency of action
 
+release:
+
+- follow DEPLOY.md for any release / tag / publish task
+- e2e is self-invoking (`uses: kindkitchen/genv@vX.Y.Z`), so the tag must exist
+  before its e2e runs: test against a disposable `vX.Y.Z-candidate` tag, promote
+  to the immutable `vX.Y.Z` tag only when green, then update main
+- after a squash-merge, reset the working branch to main before continuing
+
 
