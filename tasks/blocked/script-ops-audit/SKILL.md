@@ -17,6 +17,12 @@ one job per still-valid historical scenario, all against `@v1.0.0`. Older
 per-version e2e files kept as-is. Convention: each new version copies the latest
 e2e, bumps refs/trigger, adds one job for its new behavior.
 
+First CI run failed `content_from_vars` + `content_conflict`: the unconditional
+key=value steps (default include `.*`) also dumped the content-blob keys. Fixed
+by setting `vars_exclude_pattern`/`secrets_exclude_pattern` to `.*` in those two
+jobs (content-only). Verified via a faithful local pipeline simulator. See
+[[004.log]]. Awaiting CI re-run.
+
 Status blocked on CI: user opens a PR, watches the GitHub Actions e2e runs, and
 moves the task to `done` only once they pass. Unaddressed-by-design: e2e still
 pins the published tag, so it smoke-tests the shipped artifact, not pre-merge

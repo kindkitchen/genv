@@ -46,6 +46,8 @@ jobs:
         with:
           vars_obj: '{ "DEMO_INCLUDE": "HELLO=world\nOK=google", "DENO": "BEST=deno\nTHE_BEST=deno2" }'
           content_from_vars_include_pattern: "_INCLUDE$"
+          # treat these vars purely as content: exclude them from the key=value step
+          vars_exclude_pattern: ".*"
       - name: Assert file was written
         run: >
           [ -f ./.env ] || { echo "File not found"; exit 1; }
@@ -70,6 +72,9 @@ jobs:
           content_from_vars_include_pattern: "_INCLUDE$"
           secrets_obj: '{ "DEMO_INCLUDE": "HELLO=secrets\n", "DENO": "BEST=deno\nTHE_BEST=deno2" }'
           content_from_secrets_include_pattern: "_INCLUDE$"
+          # content-only: keep both sources out of the key=value steps
+          vars_exclude_pattern: ".*"
+          secrets_exclude_pattern: ".*"
       - name: Assert file was written
         run: >
           [ -f ./.env ] || { echo "File not found"; exit 1; }
