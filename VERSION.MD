@@ -1,5 +1,6 @@
-# 1.0.0
+# 1.0.1
 
+- improve testing
 - declared params
 - first step - merge batch-vars values
 - second step - merge vars (key=value)

@@ -6,12 +6,135 @@ on:
       - v1.0.0
     branches:
       - main
+
+# Cumulative suite: every still-valid scenario from prior versions is asserted
+# here as its own job, all against @v1.0.0. Each job runs on a fresh runner, so
+# ./.env starts clean per scenario. New versions should copy this file and add
+# a job for whatever behavior they introduce.
+permissions: {}
+
 jobs:
-  deploy:
+  # since v0.0.11 — literal dotenv_content only
+  dotenv_content:
     runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: write
+    steps:
+      - name: Self invocation
+        uses: kindkitchen/genv@v1.0.0
+        with:
+          dotenv_content: |
+            HELLO=Hello, world!
+            OK=ok, google
+      - name: Assert file was written
+        run: >
+          [ -f ./.env ] || { echo "File not found"; exit 1; }
+      - name: Debug content
+        run: |
+          echo "actual file's content:"
+          cat ./.env
+          echo "expected:"
+          echo -e "HELLO=Hello, world!\nOK=ok, google"
+      - name: Assert file's content
+        run: >
+          [ "$(cat ./.env)" = "$(echo -e "HELLO=Hello, world!\nOK=ok, google")" ] || exit 1
+
+  # since v0.1.0 — content_from_vars (batch values treated as content)
+  content_from_vars:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Self invocation
+        uses: kindkitchen/genv@v1.0.0
+        with:
+          vars_obj: '{ "DEMO_INCLUDE": "HELLO=world\nOK=google", "DENO": "BEST=deno\nTHE_BEST=deno2" }'
+          content_from_vars_include_pattern: "_INCLUDE$"
+      - name: Assert file was written
+        run: >
+          [ -f ./.env ] || { echo "File not found"; exit 1; }
+      - name: Debug content
+        run: |
+          echo "actual file's content:"
+          cat ./.env
+          echo "expected:"
+          echo -e "HELLO=world\nOK=google"
+      - name: Assert file's content
+        run: >
+          [ "$(cat ./.env)" = "$(echo -e "HELLO=world\nOK=google")" ] || exit 1
+
+  # since v0.1.1 — vars + secrets content with a conflicting key (last-win)
+  content_conflict:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Self invocation
+        uses: kindkitchen/genv@v1.0.0
+        with:
+          vars_obj: '{ "DEMO_INCLUDE": "HELLO=vars\nOK=google", "DENO": "BEST=deno\nTHE_BEST=deno2" }'
+          content_from_vars_include_pattern: "_INCLUDE$"
+          secrets_obj: '{ "DEMO_INCLUDE": "HELLO=secrets\n", "DENO": "BEST=deno\nTHE_BEST=deno2" }'
+          content_from_secrets_include_pattern: "_INCLUDE$"
+      - name: Assert file was written
+        run: >
+          [ -f ./.env ] || { echo "File not found"; exit 1; }
+      - name: Debug content
+        run: |
+          echo "actual file's content:"
+          cat ./.env
+          echo "expected:"
+          echo -e "HELLO=vars\nOK=google\nHELLO=secrets\n"
+      - name: Assert file's content
+        run: >
+          [ "$(cat ./.env)" = "$(echo -e "HELLO=vars\nOK=google\nHELLO=secrets\n")" ] || exit 1
+
+  # since v0.1.2 — content_from_vars combined with include/exclude filters
+  vars_filter:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Self invocation
+        uses: kindkitchen/genv@v1.0.0
+        with:
+          vars_obj: '{ "DEMO_INCLUDE": "HELLO=world\nOK=google", "DENO": "best", "NODE": "normal" }'
+          content_from_vars_include_pattern: "_INCLUDE$"
+          vars_include_pattern: "NO"
+          vars_exclude_pattern: "NODE"
+      - name: Assert file was written
+        run: >
+          [ -f ./.env ] || { echo "File not found"; exit 1; }
+      - name: Debug content
+        run: |
+          echo "actual file's content:"
+          cat ./.env
+          echo "expected:"
+          echo -e "HELLO=world\nOK=google\nDENO=\"best\""
+      - name: Assert file's content
+        run: >
+          [ "$(cat ./.env)" = "$(echo -e "HELLO=world\nOK=google\nDENO=\"best\"")" ] || exit 1
+
+  # since v0.1.4 — vars key=value + secrets content + secrets include/exclude
+  secrets_filter:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Self invocation
+        uses: kindkitchen/genv@v1.0.0
+        with:
+          vars_obj: '{ "HELLO": "world" }'
+          secrets_obj: '{ "CONFIG": "NAME=king", "SUDO_KEY": "alahamora", "DOOM": "boom!" }'
+          content_from_secrets_include_pattern: "^CONFIG$"
+          secrets_include_pattern: "DO"
+          secrets_exclude_pattern: "DOOM"
+      - name: Assert file was written
+        run: >
+          [ -f ./.env ] || { echo "File not found"; exit 1; }
+      - name: Debug content
+        run: |
+          echo "actual file's content:"
+          cat ./.env
+          echo "expected:"
+          echo -e "HELLO=\"world\"\nNAME=king\nSUDO_KEY=\"alahamora\""
+      - name: Assert file's content
+        run: >
+          [ "$(cat ./.env)" = "$(echo -e "HELLO=\"world\"\nNAME=king\nSUDO_KEY=\"alahamora\"")" ] || exit 1
+
+  # since v1.0.0 — all options together (every step exercised at once)
+  all_combined:
+    runs-on: ubuntu-latest
     steps:
       - name: Self invocation
         uses: kindkitchen/genv@v1.0.0
@@ -24,7 +147,6 @@ jobs:
           dotenv_content: |
             LITERAL=literal
             LITERAL_2=literal_2
-
       - name: Assert file was written
         run: >
           [ -f ./.env ] || { echo "File not found"; exit 1; }

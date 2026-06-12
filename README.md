@@ -30,7 +30,7 @@ may pass it whenever you need.
   ### to be able flexibly satisfies all your requirements.
   ###
   ### Below the example with exhaustive usage of all options
-  uses: kindkitchen/genv@v1.0.0
+  uses: kindkitchen/genv@v1.0.1
   with:
     dotenv_path: ./.env
     vars_obj: ${{ toJson(vars) }}
