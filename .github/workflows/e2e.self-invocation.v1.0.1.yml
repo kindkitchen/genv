@@ -1,14 +1,14 @@
-name: e2e v1.0.0
+name: e2e v1.0.1
 
 on:
   push:
     tags:
-      - v1.0.0
+      - v1.0.1
     branches:
       - main
 
 # Cumulative suite: every still-valid scenario from prior versions is asserted
-# here as its own job, all against @v1.0.0. Each job runs on a fresh runner, so
+# here as its own job, all against @v1.0.1. Each job runs on a fresh runner, so
 # ./.env starts clean per scenario. New versions should copy this file and add
 # a job for whatever behavior they introduce.
 permissions: {}
@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Self invocation
-        uses: kindkitchen/genv@v1.0.0
+        uses: kindkitchen/genv@v1.0.1
         with:
           dotenv_content: |
             HELLO=Hello, world!
@@ -42,10 +42,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Self invocation
-        uses: kindkitchen/genv@v1.0.0
+        uses: kindkitchen/genv@v1.0.1
         with:
           vars_obj: '{ "DEMO_INCLUDE": "HELLO=world\nOK=google", "DENO": "BEST=deno\nTHE_BEST=deno2" }'
           content_from_vars_include_pattern: "_INCLUDE$"
+          # treat these vars purely as content: exclude them from the key=value step
+          vars_exclude_pattern: ".*"
       - name: Assert file was written
         run: >
           [ -f ./.env ] || { echo "File not found"; exit 1; }
@@ -64,12 +66,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Self invocation
-        uses: kindkitchen/genv@v1.0.0
+        uses: kindkitchen/genv@v1.0.1
         with:
           vars_obj: '{ "DEMO_INCLUDE": "HELLO=vars\nOK=google", "DENO": "BEST=deno\nTHE_BEST=deno2" }'
           content_from_vars_include_pattern: "_INCLUDE$"
           secrets_obj: '{ "DEMO_INCLUDE": "HELLO=secrets\n", "DENO": "BEST=deno\nTHE_BEST=deno2" }'
           content_from_secrets_include_pattern: "_INCLUDE$"
+          # content-only: keep both sources out of the key=value steps
+          vars_exclude_pattern: ".*"
+          secrets_exclude_pattern: ".*"
       - name: Assert file was written
         run: >
           [ -f ./.env ] || { echo "File not found"; exit 1; }
@@ -88,7 +93,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Self invocation
-        uses: kindkitchen/genv@v1.0.0
+        uses: kindkitchen/genv@v1.0.1
         with:
           vars_obj: '{ "DEMO_INCLUDE": "HELLO=world\nOK=google", "DENO": "best", "NODE": "normal" }'
           content_from_vars_include_pattern: "_INCLUDE$"
@@ -112,7 +117,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Self invocation
-        uses: kindkitchen/genv@v1.0.0
+        uses: kindkitchen/genv@v1.0.1
         with:
           vars_obj: '{ "HELLO": "world" }'
           secrets_obj: '{ "CONFIG": "NAME=king", "SUDO_KEY": "alahamora", "DOOM": "boom!" }'
@@ -137,7 +142,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Self invocation
-        uses: kindkitchen/genv@v1.0.0
+        uses: kindkitchen/genv@v1.0.1
         with:
           vars_obj: '{ "HELLO": "world" }'
           secrets_obj: '{ "CONFIG": "NAME=king", "SUDO_KEY": "alahamora", "DOOM": "boom!" }'
