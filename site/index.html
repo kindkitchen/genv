@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>genv — generate dotenv from GitHub vars and secrets</title>
+  <meta name="description" content="genv is a GitHub Action that computes a dotenv file from your repository vars and secrets following a flexible merge strategy." />
+  <!-- Single static file by design: no build step, no node_modules. See tasks/.../spa-site. -->
+  <style>
+    /* TODO(scaffold): real styling. Minimal reset/placeholder only. */
+    :root { color-scheme: light dark; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font: 16px/1.6 system-ui, sans-serif; max-width: 60rem; padding: 2rem 1rem; margin-inline: auto; }
+    header h1 { margin-bottom: .25rem; }
+    section { margin-block: 3rem; }
+    section[hidden] { display: none; }
+    code, pre { font-family: ui-monospace, monospace; }
+    footer { margin-top: 4rem; border-top: 1px solid #8884; padding-top: 2rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>genv</h1>
+    <p><em>gen env</em> — a GitHub Action that builds a dotenv file from your vars and secrets.</p>
+  </header>
+
+  <!-- ===================================================================
+       1. LANDING
+       What genv is and why. Mirror README "main key points":
+         - minimal coupling between repo vars/secrets and action files
+         - flexible declaration: include/exclude, content-vs-value, mapping,
+           merge order (last-win priority)
+       TODO(scaffold): write landing copy.
+       =================================================================== -->
+  <section id="landing" aria-labelledby="landing-h">
+    <h2 id="landing-h">What is genv</h2>
+    <!-- TODO(scaffold): landing content -->
+  </section>
+
+  <!-- ===================================================================
+       2. DOCUMENTATION
+       2a. Hand-written prose (kept as untouched as possible; README is the
+           source of truth — mirror, do not duplicate logic).
+       2b. "Full spec" — GENERATED from action.yml inputs so it cannot drift.
+           A thin bash+jq/yq generator (matches action ethos) should emit a
+           fragment injected at the marker below.
+       TODO(scaffold): write prose; add generator for the full-spec block.
+       =================================================================== -->
+  <section id="docs" aria-labelledby="docs-h">
+    <h2 id="docs-h">Documentation</h2>
+    <!-- TODO(scaffold): hand-written prose: 5-step merge order + last-win -->
+
+    <h3>Full spec</h3>
+    <!-- GENERATED:action-inputs:start -->
+    <!-- TODO(scaffold): generated table of action.yml inputs goes here -->
+    <!-- GENERATED:action-inputs:end -->
+  </section>
+
+  <!-- ===================================================================
+       3. PLAYGROUND (interactive / illustrative)
+       Inputs: vars_obj, secrets_obj (JSON), the 6 regex patterns,
+       dotenv_content. Output: the generated .env rendered live, showing the
+       5-step merge order and marking lines shadowed by a later same-key line
+       (last-win). Logic = faithful JS port of action.yml — see 002.analysis.
+       TODO(scaffold): build the form, the merge() port, and the live output.
+       =================================================================== -->
+  <section id="playground" aria-labelledby="play-h">
+    <h2 id="play-h">Playground</h2>
+    <!-- TODO(scaffold): inputs + live .env output -->
+    <!--
+      merge() reference (to implement):
+        1. content_from_vars   (if pattern != "")  -> raw values of matching vars
+        2. vars  KEY=value      include && !exclude  -> KEY=JSON.stringify(value)
+        3. content_from_secrets(if pattern != "")  -> raw values of matching secrets
+        4. secrets KEY=value    include && !exclude  -> KEY=JSON.stringify(value)
+        5. dotenv_content       literal, appended last (absolute priority)
+    -->
+  </section>
+
+  <!-- ===================================================================
+       COMMENTS — GitHub-backed (giscus, Discussions). utterances (Issues) is
+       the fallback. Placeholder only; wiring (repo id, category, theme) is
+       deferred. See spa-site task decision.
+       =================================================================== -->
+  <footer id="comments">
+    <h2>Comments</h2>
+    <!-- TODO(scaffold): giscus <script> embed
+         <script src="https://giscus.app/client.js"
+                 data-repo="kindkitchen/genv"
+                 data-repo-id="..." data-category="..." data-category-id="..."
+                 data-mapping="pathname" data-theme="preferred_color_scheme"
+                 crossorigin="anonymous" async></script>
+    -->
+  </footer>
+
+  <!-- TODO(scaffold): playground logic <script> (vanilla, no build) -->
+</body>
+</html>
