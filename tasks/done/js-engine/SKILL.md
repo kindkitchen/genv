@@ -27,14 +27,18 @@ Pipeline layering ([[006.decision]]):
   content fragments, `stringify` renders output.
 - tests: spec/unit (core, filter, utils) + e2e (pipeline + CLI).
 
-Current code is the pre-pivot v0.1: an action.yml 5-step port in `genv.ts` /
-`mod.ts` / `genv.test.ts`, green but GitHub-coupled ([[003.summary]]). To be
-refactored to the agnostic core; the GitHub input mapping moves to an adapter
-owned by action-js-parity, and bash-byte parity is dropped as an engine goal.
+DONE — engine delivered, green, zero-dependency ([[007.summary]], status move
+[[008.log]]). Modules in `engine/`: `env-file.ts` (parse/stringify, round-trip),
+`merge.ts` (core: Content marker + last-win merge + content expansion, pure),
+`filter.ts` (include/exclude/content), `genv.ts` (`genv`/`merge_sources` over
+`SourceInput`), `mod.ts` (re-exports + dual CLI: direct-run pipes raw stdin,
+`genv_cli` reads JSON sources). 30 tests pass (per-layer spec + e2e); lint/fmt
+clean; `@std/assert` dropped for local `assert.ts` so `deno.lock` locks nothing;
+README + CHANGELOG updated. The old action.yml port ([[003.summary]]) is fully
+replaced.
 
-Open (working assumptions, challenge don't replace): merge collapses duplicates
-into a resolved object — yes; content-vs-literal is structural per fragment, not
-a key pattern — yes.
+Decisions realized: merge -> resolved object (no duplicate lines); content-vs-
+literal is the structural `Content` marker, set by the filter `content` pattern.
 
-Next: implement the agnostic core + env-file utils; write spec + e2e tests;
-then re-point action-js-parity at the adapter, publish to JSR, spa-site imports.
+Follow-ups, owned elsewhere: GitHub adapter mapping action inputs onto SourceInput
+(action-js-parity); JSR publish (release); spa-site imports it.
