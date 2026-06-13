@@ -8,8 +8,9 @@ relates: [js-engine]
 ---
 
 ACTIVE — adapter + parity harness done and green; now consumes the published
-engine `jsr:@kindkitchen/genv` ([[005.log]]), off the submodule. CI wiring still
-pending. Owns (after the pivot [[002.log]]): (a) the adapter mapping the action's
+engine `jsr:@kindkitchen/genv` ([[005.log]]), off the submodule. CI wired
+([[006.log]]) but not yet run on GitHub (parent unpushed). Owns (after the pivot
+[[002.log]]): (a) the adapter mapping the action's
 GitHub inputs onto the engine's agnostic sources, and (b) proving the real
 action.yml resolves to the same env as the adapter over a fixture corpus.
 
@@ -19,6 +20,6 @@ Built in parent `parity/` ([[003.decision]]): `adapter.ts` (`from_action` /
 deep-equal). 8/8 green; lint/fmt clean. Deps (dev, parent): `@kindkitchen/genv`,
 `@std/yaml`, `@std/assert`.
 
-Next: CI wiring (thin/fast, e2e.* per version) — now unblocked since parity needs
-only JSR, not the submodule. Optionally widen the corpus (number/bool @json,
-regex-dialect edges).
+Next: verify the parity workflow on GitHub on first push of the parent; then this
+task can close. Optionally widen the corpus (number/bool @json, regex-dialect
+edges).
