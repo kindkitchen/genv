@@ -87,6 +87,10 @@
     footer.site { margin-top: 4rem; border-top: 1px solid var(--line); padding-top: 2rem; color: var(--muted); }
     a { color: var(--accent); }
     code { background: var(--bg); padding: .1rem .35rem; border-radius: 6px; }
+    table.spec { width: 100%; border-collapse: collapse; margin-top: .5rem; font-size: .88rem; }
+    table.spec th, table.spec td { text-align: left; vertical-align: top; padding: .5rem .6rem; border-bottom: 1px solid var(--line); }
+    table.spec th { color: var(--muted); font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; }
+    table.spec td code { white-space: pre-wrap; word-break: break-word; }
   </style>
 </head>
 <body>
@@ -198,7 +202,21 @@
       </ol>
       <h3>Full spec</h3>
       <!-- GENERATED:action-inputs:start -->
-      <!-- TODO(spa): generated table of action.yml inputs goes here -->
+      <table class="spec">
+        <thead><tr><th>input</th><th>description</th><th>default</th></tr></thead>
+        <tbody>
+          <tr><td><code>vars_obj</code></td><td>In most cases may be toJson(vars). Or any other key-value json string</td><td><code>{}</code></td></tr>
+          <tr><td><code>secrets_obj</code></td><td>In most cases may be toJson(secrets). Or any other key-value json stringO</td><td><code>{}</code></td></tr>
+          <tr><td><code>dotenv_path</code></td><td>The path, where generated dotenv file will be placed (the default is ./.env)</td><td><code>./.env</code></td></tr>
+          <tr><td><code>dotenv_content</code></td><td>The literal content of the dotenv file. Will be placed at the bottom of generated file.</td><td><em>—</em></td></tr>
+          <tr><td><code>vars_include_pattern</code></td><td>Regex by which the keys from vars will be included. (default: "*")</td><td><code>.*</code></td></tr>
+          <tr><td><code>vars_exclude_pattern</code></td><td>Regex by which the keys from vars will not be included. Will override `include_vars_pattern` on conflict. (default: null)</td><td><code>NOTING_this_is_hardcoded_impossible_pattern{10}</code></td></tr>
+          <tr><td><code>secrets_include_pattern</code></td><td>Regex by which the keys from secrets will be included. (default: "*")</td><td><code>.*</code></td></tr>
+          <tr><td><code>secrets_exclude_pattern</code></td><td>Regex by which the keys from secrets will not be included. Will override `include_secrets_pattern` on conflict. (default: null)</td><td><code>NOTING_this_is_hardcoded_impossible_pattern{10}</code></td></tr>
+          <tr><td><code>content_from_vars_include_pattern</code></td><td>Regex by which the keys from vars will be treated as part of content (many lines with variables) and these contents will be attached. (default: null)</td><td><em>—</em></td></tr>
+          <tr><td><code>content_from_secrets_include_pattern</code></td><td>Regex by which the keys from secrets will be treated as part of content (many lines with variables) and these contents will be attached. (default: null)</td><td><em>—</em></td></tr>
+        </tbody>
+      </table>
       <!-- GENERATED:action-inputs:end -->
     </div>
   </section>
