@@ -6,7 +6,7 @@
  * The 5-step append pipeline becomes 5 ordered sources; the engine's last-win
  * merge resolves them.
  */
-import { genv, type SourceInput } from "../engine/mod.ts";
+import { genv, type SourceInput } from "@kindkitchen/genv";
 
 /** The `vars_exclude`/`secrets_exclude` default from action.yml: matches no real key. */
 const IMPOSSIBLE = "NOTING_this_is_hardcoded_impossible_pattern{10}";
