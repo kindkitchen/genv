@@ -28,11 +28,10 @@ onto engine sources; engine loaded from esm.sh; output is the resolved (deduped,
 last-win) env.
 
 State ([[009.summary]]): `site/index.html` is a working single-file playground —
-live inputs -> resolved `.env` + per-step merge timeline + copy; brief landing and
-hand-written 5-step docs; `GENERATED:action-inputs` marker kept. Engine/adapter
-logic validated against the real published engine; live-browser DOM wiring not yet
-confirmed.
+live inputs -> resolved `.env` + per-step merge timeline + copy; brief landing,
+hand-written 5-step docs + a generated "Full spec" table from action.yml
+(`site/gen-docs.ts`, [[010.log]]). Engine/adapter logic validated against the real
+published engine; live-browser DOM wiring not yet confirmed.
 
-Next: Build-A-Map visual pass; docs "Full spec" generator from action.yml; expand
-landing; giscus wiring; confirm in a browser. Deployment is the dependent task
-site-gh-pages-deploy.
+Next: Build-A-Map visual pass; expand landing; giscus wiring; confirm in a
+browser. Deployment is the dependent task site-gh-pages-deploy.
