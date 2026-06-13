@@ -30,8 +30,9 @@ last-win) env.
 State ([[009.summary]]): `site/index.html` is a working single-file playground —
 live inputs -> resolved `.env` + per-step merge timeline + copy; brief landing,
 hand-written 5-step docs + a generated "Full spec" table from action.yml
-(`site/gen-docs.ts`, [[010.log]]). Engine/adapter logic validated against the real
-published engine; live-browser DOM wiring not yet confirmed.
+(`site/gen-docs.ts`, [[010.log]]). 8-bit/NES pixel theme applied ([[011.log]];
+Press Start 2P + VT323). Browser-verified via headless-chromium screenshot —
+engine/adapter run live.
 
-Next: Build-A-Map visual pass; expand landing; giscus wiring; confirm in a
-browser. Deployment is the dependent task site-gh-pages-deploy.
+Next: expand landing copy; giscus wiring (needs Discussions + repo/category ids).
+Deployment is the dependent task site-gh-pages-deploy.
