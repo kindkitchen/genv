@@ -22,11 +22,17 @@ Decided ([[003.decision]]): single static `site/index.html` (vanilla, no build);
 GitHub-backed comments footer (giscus); docs = manual prose + a "Full spec"
 section generated from action.yml.
 
-State: only the scaffold exists — `site/index.html` skeleton with placeholder
-sections and TODO markers; no UI logic yet.
+Playground model decided ([[008.decision]]): exposes the GitHub Action inputs
+(vars/secrets/dotenv_content + 6 patterns) via an in-site `from_action` adapter
+onto engine sources; engine loaded from esm.sh; output is the resolved (deduped,
+last-win) env.
 
-Open before building: does the playground demonstrate the generic engine (ordered
-sources: data + include/exclude/content) or the GitHub action inputs
-(vars/secrets/patterns via a small in-site adapter mirroring parity's
-from_action)? Then: landing copy, docs generator, giscus wiring. Deployment is the
-dependent task site-gh-pages-deploy.
+State ([[009.summary]]): `site/index.html` is a working single-file playground —
+live inputs -> resolved `.env` + per-step merge timeline + copy; brief landing and
+hand-written 5-step docs; `GENERATED:action-inputs` marker kept. Engine/adapter
+logic validated against the real published engine; live-browser DOM wiring not yet
+confirmed.
+
+Next: Build-A-Map visual pass; docs "Full spec" generator from action.yml; expand
+landing; giscus wiring; confirm in a browser. Deployment is the dependent task
+site-gh-pages-deploy.
