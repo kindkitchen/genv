@@ -7,15 +7,17 @@ tags: [testing, ci, engine]
 relates: [js-engine]
 ---
 
-TODO — depends on js-engine. After the engine pivot ([[002.log]]) this task owns
-two things: (a) the adapter mapping the action's GitHub inputs (vars_obj,
-secrets_obj, *_include/_exclude, content_from_*) onto the engine's agnostic
-source/fragment model, and (b) proving the raw bash action (action.yml) produces
-the same dotenv as `adapter(engine merge)` over a corpus of inputs. Spec:
-[[001.draft]] (predates the pivot — read with [[002.log]]).
+ACTIVE — adapter + local parity harness done and green ([[004.summary]]); CI
+wiring still pending. Owns (after the pivot [[002.log]]): (a) the adapter mapping
+the action's GitHub inputs onto the engine's agnostic sources, and (b) proving the
+real action.yml resolves to the same env as the adapter over a fixture corpus.
 
-To design: the adapter; a fixture corpus (inputs -> expected); a runner that
-executes the bash/jq pipeline and the adapter over the same inputs and diffs
-them; and CI wiring that stays thin/fast per project ethos (the e2e.* actions act
-like real tests covering each version). Output: parity verified in CI;
-divergences become bash bugs or documented adapter caveats.
+Built in parent `parity/` ([[003.decision]]): `adapter.ts` (`from_action` /
+`genv_action`), `action-runner.ts` (executes the real action.yml steps),
+`fixtures.ts` (8 cases), `parity.test.ts` (semantic compare: `parse` both sides,
+deep-equal). 8/8 green; lint/fmt clean; uses `@std/yaml` (dev-only, parent). Not
+committed yet. Spec [[001.draft]] predates the pivot — read with [[002.log]].
+
+Next: CI wiring (thin/fast, e2e.* per version); optionally widen the corpus
+(number/bool @json, regex-dialect edges). JSR publish of the engine would let this
+import `jsr:@kindkitchen/genv` instead of the submodule path.
