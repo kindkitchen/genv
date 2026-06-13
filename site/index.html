@@ -4,95 +4,313 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>genv — generate dotenv from GitHub vars and secrets</title>
-  <meta name="description" content="genv is a GitHub Action that computes a dotenv file from your repository vars and secrets following a flexible merge strategy." />
-  <!-- Single static file by design: no build step, no node_modules. See tasks/.../spa-site. -->
+  <meta name="description" content="genv is a GitHub Action that computes a dotenv file from your repository vars and secrets following a flexible merge strategy. Try it live." />
+  <!-- Single static file by design: no build step, no node_modules. The
+       playground reuses the published engine (jsr:@kindkitchen/genv) in-browser
+       via esm.sh. Visual direction: Dribbble "Build A Map" (24895606) — a
+       playful, game-like board. This is a first functional cut; theming is a
+       foundation, not the final art pass. -->
   <style>
-    /* TODO(scaffold): real styling. Minimal reset/placeholder only. */
-    :root { color-scheme: light dark; }
+    :root {
+      --bg: #f4ead6;
+      --panel: #fbf4e6;
+      --ink: #3a2f25;
+      --muted: #8a7a64;
+      --line: #e0d2b6;
+      --accent: #e07a3f;
+      --accent-2: #4f8a6b;
+      --shadow: 0 2px 0 #d9c8a8, 0 10px 24px rgba(90, 70, 40, .12);
+      --radius: 14px;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #221c16; --panel: #2c241c; --ink: #f0e6d4; --muted: #b6a489;
+        --line: #463829; --accent: #ef8c52; --accent-2: #7bbf99;
+        --shadow: 0 2px 0 #1a140e, 0 10px 24px rgba(0, 0, 0, .35);
+      }
+    }
     * { box-sizing: border-box; }
-    body { margin: 0; font: 16px/1.6 system-ui, sans-serif; max-width: 60rem; padding: 2rem 1rem; margin-inline: auto; }
-    header h1 { margin-bottom: .25rem; }
-    section { margin-block: 3rem; }
-    section[hidden] { display: none; }
-    code, pre { font-family: ui-monospace, monospace; }
-    footer { margin-top: 4rem; border-top: 1px solid #8884; padding-top: 2rem; }
+    body {
+      margin: 0; background: var(--bg); color: var(--ink);
+      font: 16px/1.6 ui-sans-serif, system-ui, sans-serif;
+    }
+    .wrap { max-width: 72rem; margin-inline: auto; padding: 2rem 1.25rem 5rem; }
+    header.hero { text-align: center; padding: 2.5rem 0 1rem; }
+    header.hero h1 {
+      font-size: clamp(2.4rem, 6vw, 3.6rem); margin: 0;
+      letter-spacing: -.02em;
+    }
+    header.hero .tag { color: var(--muted); font-size: 1.1rem; margin-top: .25rem; }
+    header.hero .lead { max-width: 42rem; margin: 1rem auto 0; }
+    .pill {
+      display: inline-block; padding: .15rem .6rem; border-radius: 999px;
+      background: var(--accent); color: #fff; font-size: .8rem; font-weight: 600;
+      transform: rotate(-2deg);
+    }
+    section { margin-top: 3rem; }
+    h2 { font-size: 1.5rem; margin: 0 0 1rem; }
+    .panel {
+      background: var(--panel); border: 1px solid var(--line);
+      border-radius: var(--radius); box-shadow: var(--shadow); padding: 1.25rem;
+    }
+    .board { display: grid; gap: 1.25rem; grid-template-columns: 1fr; }
+    @media (min-width: 56rem) { .board { grid-template-columns: 1fr 1fr; align-items: start; } }
+    label { display: block; font-weight: 600; margin: .9rem 0 .3rem; font-size: .92rem; }
+    label .hint { font-weight: 400; color: var(--muted); font-size: .82rem; }
+    textarea, input[type=text] {
+      width: 100%; font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      font-size: .9rem; color: var(--ink); background: var(--bg);
+      border: 1px solid var(--line); border-radius: 10px; padding: .55rem .65rem;
+    }
+    textarea { resize: vertical; min-height: 4.5rem; }
+    .grid2 { display: grid; gap: .5rem 1rem; grid-template-columns: 1fr 1fr; }
+    .out-head { display: flex; align-items: center; justify-content: space-between; }
+    pre.out {
+      margin: 0; padding: 1rem; border-radius: 10px; min-height: 8rem;
+      background: #2a2018; color: #f3e9d6; overflow: auto;
+      font-family: ui-monospace, Menlo, monospace; font-size: .9rem; white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .err { color: #fff; background: #c0492b; border-radius: 8px; padding: .5rem .7rem; margin-top: .6rem; font-size: .88rem; }
+    .err:empty { display: none; }
+    .steps { list-style: none; margin: 1rem 0 0; padding: 0; display: grid; gap: .5rem; }
+    .step { border: 1px dashed var(--line); border-radius: 10px; padding: .5rem .7rem; }
+    .step.skipped { opacity: .45; }
+    .step .name { font-weight: 600; font-size: .85rem; display: flex; gap: .5rem; align-items: center; }
+    .step .num {
+      width: 1.4rem; height: 1.4rem; display: grid; place-items: center;
+      background: var(--accent-2); color: #fff; border-radius: 999px; font-size: .75rem;
+    }
+    .step pre { margin: .4rem 0 0; font-family: ui-monospace, Menlo, monospace; font-size: .82rem; white-space: pre-wrap; color: var(--muted); }
+    .step.skipped .num { background: var(--muted); }
+    .copy { border: 1px solid var(--line); background: var(--bg); color: var(--ink); border-radius: 8px; padding: .25rem .6rem; cursor: pointer; font-size: .82rem; }
+    footer.site { margin-top: 4rem; border-top: 1px solid var(--line); padding-top: 2rem; color: var(--muted); }
+    a { color: var(--accent); }
+    code { background: var(--bg); padding: .1rem .35rem; border-radius: 6px; }
   </style>
 </head>
 <body>
-  <header>
+<div class="wrap">
+
+  <header class="hero">
+    <span class="pill">GitHub Action</span>
     <h1>genv</h1>
-    <p><em>gen env</em> — a GitHub Action that builds a dotenv file from your vars and secrets.</p>
+    <div class="tag"><em>gen env</em></div>
+    <p class="lead">
+      Build a <code>.env</code> from your repository <strong>vars</strong> and
+      <strong>secrets</strong> — include/exclude by pattern, treat a value as a
+      whole file fragment, and merge sources in order with last-win. Change your
+      environment without touching your workflow yaml.
+    </p>
   </header>
 
   <!-- ===================================================================
-       1. LANDING
-       What genv is and why. Mirror README "main key points":
-         - minimal coupling between repo vars/secrets and action files
-         - flexible declaration: include/exclude, content-vs-value, mapping,
-           merge order (last-win priority)
-       TODO(scaffold): write landing copy.
+       1. LANDING — key points (mirror README). TODO(spa): expand copy + visuals.
        =================================================================== -->
   <section id="landing" aria-labelledby="landing-h">
-    <h2 id="landing-h">What is genv</h2>
-    <!-- TODO(scaffold): landing content -->
+    <h2 id="landing-h">Why genv</h2>
+    <div class="panel">
+      <ul>
+        <li><strong>Minimal coupling</strong> — update vars/secrets (keys, not just values) and rerun; no new commit to your yaml.</li>
+        <li><strong>Flexible declaration</strong> — include/exclude patterns, value-vs-content, and merge order let you shape the file.</li>
+        <li><strong>Last-win merge</strong> — ordered sources resolve conflicts predictably.</li>
+      </ul>
+    </div>
   </section>
 
   <!-- ===================================================================
-       2. DOCUMENTATION
-       2a. Hand-written prose (kept as untouched as possible; README is the
-           source of truth — mirror, do not duplicate logic).
-       2b. "Full spec" — GENERATED from action.yml inputs so it cannot drift.
-           A thin bash+jq/yq generator (matches action ethos) should emit a
-           fragment injected at the marker below.
-       TODO(scaffold): write prose; add generator for the full-spec block.
-       =================================================================== -->
-  <section id="docs" aria-labelledby="docs-h">
-    <h2 id="docs-h">Documentation</h2>
-    <!-- TODO(scaffold): hand-written prose: 5-step merge order + last-win -->
-
-    <h3>Full spec</h3>
-    <!-- GENERATED:action-inputs:start -->
-    <!-- TODO(scaffold): generated table of action.yml inputs goes here -->
-    <!-- GENERATED:action-inputs:end -->
-  </section>
-
-  <!-- ===================================================================
-       3. PLAYGROUND (interactive / illustrative)
-       Inputs: vars_obj, secrets_obj (JSON), the 6 regex patterns,
-       dotenv_content. Output: the generated .env rendered live, showing the
-       5-step merge order and marking lines shadowed by a later same-key line
-       (last-win). Logic = faithful JS port of action.yml — see 002.analysis.
-       TODO(scaffold): build the form, the merge() port, and the live output.
+       2. PLAYGROUND — action inputs -> engine sources -> live .env.
+       Uses the published engine jsr:@kindkitchen/genv via esm.sh; the
+       from_action mapping mirrors parity/adapter.ts.
        =================================================================== -->
   <section id="playground" aria-labelledby="play-h">
     <h2 id="play-h">Playground</h2>
-    <!-- TODO(scaffold): inputs + live .env output -->
-    <!--
-      merge() reference (to implement):
-        1. content_from_vars   (if pattern != "")  -> raw values of matching vars
-        2. vars  KEY=value      include && !exclude  -> KEY=JSON.stringify(value)
-        3. content_from_secrets(if pattern != "")  -> raw values of matching secrets
-        4. secrets KEY=value    include && !exclude  -> KEY=JSON.stringify(value)
-        5. dotenv_content       literal, appended last (absolute priority)
-    -->
+    <div class="board">
+      <div class="panel" id="inputs">
+        <label for="vars_obj">vars_obj <span class="hint">JSON object (e.g. <code>toJson(vars)</code>)</span></label>
+        <textarea id="vars_obj" spellcheck="false"></textarea>
+
+        <label for="secrets_obj">secrets_obj <span class="hint">JSON object — higher priority</span></label>
+        <textarea id="secrets_obj" spellcheck="false"></textarea>
+
+        <div class="grid2">
+          <div>
+            <label for="content_from_vars_include_pattern">content_from_vars <span class="hint">regex</span></label>
+            <input id="content_from_vars_include_pattern" type="text" spellcheck="false" />
+          </div>
+          <div>
+            <label for="content_from_secrets_include_pattern">content_from_secrets <span class="hint">regex</span></label>
+            <input id="content_from_secrets_include_pattern" type="text" spellcheck="false" />
+          </div>
+          <div>
+            <label for="vars_include_pattern">vars_include <span class="hint">regex</span></label>
+            <input id="vars_include_pattern" type="text" spellcheck="false" />
+          </div>
+          <div>
+            <label for="vars_exclude_pattern">vars_exclude <span class="hint">regex</span></label>
+            <input id="vars_exclude_pattern" type="text" spellcheck="false" />
+          </div>
+          <div>
+            <label for="secrets_include_pattern">secrets_include <span class="hint">regex</span></label>
+            <input id="secrets_include_pattern" type="text" spellcheck="false" />
+          </div>
+          <div>
+            <label for="secrets_exclude_pattern">secrets_exclude <span class="hint">regex</span></label>
+            <input id="secrets_exclude_pattern" type="text" spellcheck="false" />
+          </div>
+        </div>
+
+        <label for="dotenv_content">dotenv_content <span class="hint">literal, appended last</span></label>
+        <textarea id="dotenv_content" spellcheck="false"></textarea>
+
+        <div class="err" id="error" role="alert"></div>
+      </div>
+
+      <div class="panel" id="result">
+        <div class="out-head">
+          <h2 style="font-size:1.1rem;margin:0">Generated .env</h2>
+          <button class="copy" id="copy" type="button">copy</button>
+        </div>
+        <pre class="out" id="output">(loading engine…)</pre>
+        <p class="hint" style="color:var(--muted);font-size:.82rem;margin:.6rem 0 0">
+          The resolved env (deduped, last-win) — what your app loads. Below: how
+          each step builds it up, in order.
+        </p>
+        <ol class="steps" id="steps"></ol>
+      </div>
+    </div>
   </section>
 
   <!-- ===================================================================
-       COMMENTS — GitHub-backed (giscus, Discussions). utterances (Issues) is
-       the fallback. Placeholder only; wiring (repo id, category, theme) is
-       deferred. See spa-site task decision.
+       3. DOCUMENTATION — manual prose + a generated "Full spec" from action.yml.
+       TODO(spa): write prose; add a generator filling the marker below.
        =================================================================== -->
-  <footer id="comments">
-    <h2>Comments</h2>
-    <!-- TODO(scaffold): giscus <script> embed
-         <script src="https://giscus.app/client.js"
-                 data-repo="kindkitchen/genv"
-                 data-repo-id="..." data-category="..." data-category-id="..."
-                 data-mapping="pathname" data-theme="preferred_color_scheme"
-                 crossorigin="anonymous" async></script>
-    -->
+  <section id="docs" aria-labelledby="docs-h">
+    <h2 id="docs-h">Documentation</h2>
+    <div class="panel">
+      <p>The action runs five ordered steps, each appending to the file:</p>
+      <ol>
+        <li><code>content_from_vars_include_pattern</code> — matching vars' values are inlined as raw content.</li>
+        <li><code>vars_include_pattern</code> / <code>vars_exclude_pattern</code> — remaining vars become <code>KEY=value</code>.</li>
+        <li><code>content_from_secrets_include_pattern</code> — matching secrets' values inlined as content.</li>
+        <li><code>secrets_include_pattern</code> / <code>secrets_exclude_pattern</code> — remaining secrets become <code>KEY=value</code>.</li>
+        <li><code>dotenv_content</code> — literal block, appended last (absolute priority).</li>
+      </ol>
+      <h3>Full spec</h3>
+      <!-- GENERATED:action-inputs:start -->
+      <!-- TODO(spa): generated table of action.yml inputs goes here -->
+      <!-- GENERATED:action-inputs:end -->
+    </div>
+  </section>
+
+  <!-- ===================================================================
+       COMMENTS — giscus (GitHub Discussions). TODO(spa): wire repo id/category.
+       =================================================================== -->
+  <footer class="site" id="comments">
+    <p>
+      genv is open source — <a href="https://github.com/kindkitchen/genv">kindkitchen/genv</a>.
+      Engine: <a href="https://jsr.io/@kindkitchen/genv"><code>jsr:@kindkitchen/genv</code></a>.
+    </p>
+    <!-- TODO(spa): giscus <script> embed -->
   </footer>
 
-  <!-- TODO(scaffold): playground logic <script> (vanilla, no build) -->
+</div>
+
+<script type="module">
+  import { genv } from "https://esm.sh/jsr/@kindkitchen/genv@0.1.0";
+
+  // action.yml default for *_exclude: a sentinel that matches no real key.
+  const IMPOSSIBLE = "NOTING_this_is_hardcoded_impossible_pattern{10}";
+
+  const FIELDS = [
+    "vars_obj", "secrets_obj", "dotenv_content",
+    "content_from_vars_include_pattern", "content_from_secrets_include_pattern",
+    "vars_include_pattern", "vars_exclude_pattern",
+    "secrets_include_pattern", "secrets_exclude_pattern",
+  ];
+
+  // A small illustrative default so the board is alive on first paint.
+  const DEFAULTS = {
+    vars_obj: JSON.stringify({ PORT: "3000", CONFIG: "DB=postgres\nDB_PORT=5432" }, null, 2),
+    secrets_obj: JSON.stringify({ API_KEY: "s3cr3t" }, null, 2),
+    dotenv_content: "NODE_ENV=production\nLOG_LEVEL=info",
+    content_from_vars_include_pattern: "^CONFIG$",
+    content_from_secrets_include_pattern: "",
+    vars_include_pattern: ".*",
+    vars_exclude_pattern: "^CONFIG$",
+    secrets_include_pattern: ".*",
+    secrets_exclude_pattern: "",
+  };
+
+  const $ = (id) => document.getElementById(id);
+  const read = () => Object.fromEntries(FIELDS.map((f) => [f, $(f).value]));
+
+  function parse_obj(label, txt) {
+    if (!txt.trim()) return {};
+    try { return JSON.parse(txt); }
+    catch { throw new Error(`${label} is not valid JSON`); }
+  }
+
+  // Mirror parity/adapter.ts from_action: 5 action steps -> ordered engine sources.
+  function steps_for(i) {
+    const vars = parse_obj("vars_obj", i.vars_obj);
+    const secrets = parse_obj("secrets_obj", i.secrets_obj);
+    const cfv = i.content_from_vars_include_pattern;
+    const cfs = i.content_from_secrets_include_pattern;
+    const out = [];
+    if (cfv) out.push({ label: "content_from_vars", source: { data: vars, include: cfv, content: cfv } });
+    out.push({ label: "vars · key=value", source: { data: vars, include: i.vars_include_pattern || ".*", exclude: i.vars_exclude_pattern || IMPOSSIBLE } });
+    if (cfs) out.push({ label: "content_from_secrets", source: { data: secrets, include: cfs, content: cfs } });
+    out.push({ label: "secrets · key=value", source: { data: secrets, include: i.secrets_include_pattern || ".*", exclude: i.secrets_exclude_pattern || IMPOSSIBLE } });
+    out.push({ label: "dotenv_content", source: { data: i.dotenv_content || "" } });
+    return out;
+  }
+
+  // The five named steps in order; mark which are active for the timeline.
+  const STEP_ORDER = [
+    "content_from_vars", "vars · key=value", "content_from_secrets",
+    "secrets · key=value", "dotenv_content",
+  ];
+
+  function render() {
+    const i = read();
+    let steps;
+    try { steps = steps_for(i); }
+    catch (e) { $("error").textContent = e.message; return; }
+    $("error").textContent = "";
+
+    const sources = steps.map((s) => s.source);
+    $("output").textContent = genv(sources) || "(empty)";
+
+    const by_label = new Map(steps.map((s) => [s.label, s.source]));
+    $("steps").innerHTML = "";
+    STEP_ORDER.forEach((label, idx) => {
+      const src = by_label.get(label);
+      const li = document.createElement("li");
+      li.className = "step" + (src ? "" : " skipped");
+      const lines = src ? genv([src]).replace(/\n$/, "") : "";
+      li.innerHTML =
+        `<div class="name"><span class="num">${idx + 1}</span>${label}${src ? "" : " · skipped"}</div>` +
+        (src && lines ? `<pre>${escape_html(lines)}</pre>` : "");
+      $("steps").appendChild(li);
+    });
+  }
+
+  function escape_html(s) {
+    return s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+  }
+
+  // init
+  for (const f of FIELDS) {
+    $(f).value = DEFAULTS[f];
+    $(f).addEventListener("input", render);
+  }
+  $("copy").addEventListener("click", async () => {
+    await navigator.clipboard.writeText($("output").textContent);
+    $("copy").textContent = "copied!";
+    setTimeout(() => ($("copy").textContent = "copy"), 1200);
+  });
+  render();
+</script>
 </body>
 </html>
