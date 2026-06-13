@@ -17,11 +17,15 @@ Three primitives: (1) N ordered sources — public/private is just a caller labe
 (2) two value kinds — a literal value, or a value that is itself env-file content
 to parse + inline; (3) ordered last-win merge into one result.
 
-Structure (planned):
-- core (pure TS): ordered last-win merge + nested-content expansion, no I/O.
-- utils: `parse` (env text -> object) + `stringify` (object -> env text);
-  load-bearing — `parse` expands content fragments, `stringify` renders output.
-- tests: spec/unit (core + utils) + e2e (pipeline + CLI).
+Pipeline layering ([[006.decision]]):
+- util `parse`: env text -> object.
+- engine filter layer (non-core): include/exclude/match, per source on its
+  object, after parse and before merge.
+- core (pure TS): ordered last-win merge + nested-content expansion, no I/O, no
+  patterns.
+- util `stringify`: object -> env text. Load-bearing — `parse` also expands
+  content fragments, `stringify` renders output.
+- tests: spec/unit (core, filter, utils) + e2e (pipeline + CLI).
 
 Current code is the pre-pivot v0.1: an action.yml 5-step port in `genv.ts` /
 `mod.ts` / `genv.test.ts`, green but GitHub-coupled ([[003.summary]]). To be
