@@ -1,0 +1,8 @@
+{
+  "tasks": {
+    "test": "deno test --allow-run=bash --allow-read --allow-write --allow-env"
+  },
+  "imports": {
+    "@std/yaml": "jsr:@std/yaml@^1.0.0"
+  }
+}
