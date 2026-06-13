@@ -40,5 +40,7 @@ replaced.
 Decisions realized: merge -> resolved object (no duplicate lines); content-vs-
 literal is the structural `Content` marker, set by the filter `content` pattern.
 
-Follow-ups, owned elsewhere: GitHub adapter mapping action inputs onto SourceInput
-(action-js-parity); JSR publish (release); spa-site imports it.
+Published to JSR as `jsr:@kindkitchen/genv@0.1.0` ([[009.log]]; LICENSE +
+publish.exclude added). Follow-ups, owned elsewhere: GitHub adapter mapping action
+inputs onto SourceInput (action-js-parity — now consumes the jsr package);
+spa-site imports it.
