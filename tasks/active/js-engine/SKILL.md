@@ -13,11 +13,14 @@ validated against it (slug action-js-parity) and the SPA reuses it (slug
 spa-site). Decision [[002.decision]]; fidelity contract [[001.draft]].
 
 API: `genv(inputs) -> string` (inputs mirror action.yml snake_case + defaults).
-Layout: root `deno.json`; `engine/genv.ts` (impl), `engine/mod.ts` (re-export +
-`import.meta.main` CLI: stdin JSON -> stdout dotenv), `engine/genv.test.ts`.
+Lives in its own repo https://github.com/kindkitchen/genv-js, included here as a
+git submodule at `engine/` ([[004.log]]). Files: `deno.json`, `mod.ts` (re-export
++ `import.meta.main` CLI: stdin JSON -> stdout dotenv), `genv.ts` (impl),
+`genv.test.ts`, `README.md`.
 
 State: v0.1 implemented and green ([[003.summary]]) — `deno test` 10/10, lint +
-fmt clean, CLI works. Fidelity caveats documented but not yet parity-proven.
+fmt clean, CLI works. Extracted to submodule. Fidelity caveats documented but not
+yet parity-proven; not yet published to JSR.
 
 Next: parity against the bash action (action-js-parity); publish to JSR; spa-site
 imports it. Maybe more edge-case tests; maybe expose a per-step breakdown for the
