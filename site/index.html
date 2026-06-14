@@ -9,8 +9,8 @@
   <!-- Single static file by design: no build step, no node_modules. The
        playground reuses the published engine (jsr:@kindkitchen/genv) in-browser
        via esm.sh. Visual direction: 8-bit/NES pixel (Press Start 2P headings +
-       VT323 body, hard borders + offset shadows, sharp corners). Three palettes
-       — NES, monochrome, monochrome+green — each with a light and dark variant,
+       VT323 body, hard borders + offset shadows, sharp corners). Two palettes
+       — NES and monochrome — each with a light and dark variant,
        chosen from the top-right switch (data-palette/data-mode on <html>,
        persisted). The yaml/.env highlighting and the green hand-drawn marks
        always carry color. -->
@@ -28,7 +28,7 @@
       --hl-punct: #8b949e; --hl-comment: #8b949e; --hl-dim: #8b949e;
     }
 
-    /* ===== palettes: NES / monochrome / monochrome+green, each light+dark.
+    /* ===== palettes: NES / monochrome, each light+dark.
        data-palette + data-mode on <html> select one (set by the top-right
        switch and an early inline script; persisted in localStorage). ===== */
 
@@ -42,8 +42,7 @@
       --head-ink: var(--ink); --head-shadow: none;
       --pill-bg: transparent; --pill-ink: var(--ink);
     }
-    :root[data-palette="mono"][data-mode="dark"],
-    :root[data-palette="mono-green"][data-mode="dark"] {
+    :root[data-palette="mono"][data-mode="dark"] {
       color-scheme: dark;
       --bg: #161616; --panel: #1e1e1e; --field: #161616;
       --ink: #ededed; --muted: #9a9a9a; --line: #333333; --line-strong: #444444;
@@ -53,10 +52,6 @@
       --hl-key: #0550ae; --hl-str: #0a7c2f; --hl-expr: #953800;
       --hl-punct: #6e7781; --hl-comment: #6e7781; --hl-dim: #6e7781;
     }
-
-    /* monochrome + green: same neutrals, green action accent */
-    :root[data-palette="mono-green"] { --accent: #2aa84a; --on-accent: #ffffff; }
-    :root[data-palette="mono-green"][data-mode="dark"] { --accent: #54d97a; --on-accent: #06210f; }
 
     /* NES — closest to the skill reference */
     :root[data-palette="nes"] {
@@ -143,6 +138,10 @@
     .kv-main { min-width: 0; flex: 1; display: flex; align-items: baseline; gap: .6rem; }
     .kv-name { font-family: var(--mono); font-weight: 600; font-size: .9rem; }
     .kv-val { font-family: var(--mono); font-size: .85rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* multi-line var values (e.g. CONFIG, a whole file fragment) show verbatim
+       so the "value is content" intent reads at a glance. */
+    .kv-val.kv-multiline { white-space: pre-wrap; overflow: visible; text-overflow: clip; word-break: break-word; }
+    .kv-row:has(.kv-multiline) { align-items: flex-start; }
     .kv-actions { flex: none; display: flex; gap: .4rem; }
     .kv-actions button {
       font-family: var(--sans); font-size: .8rem; cursor: pointer; color: var(--muted);
@@ -185,8 +184,42 @@
     }
     @keyframes try-fade { 0%, 100% { opacity: 0; } 9% { opacity: 1; } 62% { opacity: 1; } 78% { opacity: 0; } }
     @keyframes try-draw { 0% { stroke-dashoffset: 260; } 38% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: 0; } }
+
+    /* companion to the green invite circle: a red hand-drawn underline on the
+       content var's value, sharing the same blink/draw lifecycle. Both vanish
+       together the moment the user toggles content_from_vars. */
+    .try-host { position: relative; display: inline-block; overflow: visible; }
+    .try-line {
+      position: absolute; left: -.2em; bottom: -.15em; width: calc(100% + .4em); height: .7em;
+      overflow: visible; pointer-events: none; animation: try-fade 4.5s ease-in-out infinite;
+    }
+    .try-line path {
+      fill: none; stroke: #e5484d; stroke-width: 2.6; stroke-linecap: round;
+      stroke-dasharray: 200; stroke-dashoffset: 200;
+      animation: try-line-draw 4.5s ease-in-out infinite;
+    }
+    @keyframes try-line-draw { 0% { stroke-dashoffset: 200; } 38% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: 0; } }
+
+    /* one-time rainbow circle drawn once around the line/content that appears
+       after the invite is accepted — in the Workflow step and the fixed .env. */
+    .rb-host { position: relative; display: inline-block; vertical-align: top; }
+    /* wider + thinner than the text box so the ring frames without crowding. */
+    .rb-ring {
+      position: absolute; left: -1.4ch; top: -.45em; width: calc(100% + 2.8ch); height: calc(100% + .9em);
+      overflow: visible; pointer-events: none;
+    }
+    .rb-ring path {
+      fill: none; stroke-width: 1.6; stroke-linecap: round;
+      stroke-dasharray: 330; stroke-dashoffset: 330;
+      animation: rb-draw 1.1s ease-out forwards, rb-fade 1s ease-in 3s forwards;
+    }
+    @keyframes rb-draw { to { stroke-dashoffset: 0; } }
+    @keyframes rb-fade { to { opacity: 0; } }
+
     @media (prefers-reduced-motion: reduce) {
-      .try-wrap, .try-wrap path { animation: none; opacity: 1; stroke-dashoffset: 0; }
+      .try-wrap, .try-wrap path,
+      .try-line, .try-line path,
+      .rb-ring path { animation: none; opacity: 1; stroke-dashoffset: 0; }
     }
 
     /* right: reactive outputs */
@@ -218,6 +251,20 @@
     .hl-punct { color: var(--hl-punct); }
     .hl-comment { color: var(--hl-comment); font-style: italic; }
     .hl-dim { color: var(--hl-dim); }
+
+    /* The two output screens use VSCode's default One Dark / One Light token
+       colors exclusively, regardless of the active palette — the Workflow step
+       as yaml, the Generated .env as a dotenv file. Only the focused tokens are
+       remapped; --hl-comment / --hl-dim stay theme-driven so the dimmed,
+       not-focused scaffolding keeps its muted look. One Dark on the dark screen
+       (NES, mono-light), One Light on the light screen (mono-dark). */
+    pre.out#yaml, pre.out#output {
+      --hl-key: #e06c75; --hl-str: #98c379; --hl-expr: #d19a66; --hl-punct: #abb2bf;
+    }
+    :root[data-palette="mono"][data-mode="dark"] pre.out#yaml,
+    :root[data-palette="mono"][data-mode="dark"] pre.out#output {
+      --hl-key: #e45649; --hl-str: #50a14f; --hl-expr: #986801; --hl-punct: #383a42;
+    }
     /* green hand-drawn underline marking the deploy command as the goal */
     .goal { position: relative; display: inline-block; }
     .goal .goal-line {
@@ -325,7 +372,9 @@
     (function () {
       try {
         var r = document.documentElement;
-        r.setAttribute("data-palette", localStorage.getItem("genv_palette") || "nes");
+        var pal = localStorage.getItem("genv_palette");
+        if (pal !== "nes" && pal !== "mono") pal = "nes"; // mono-green was removed
+        r.setAttribute("data-palette", pal);
         r.setAttribute("data-mode", localStorage.getItem("genv_mode") ||
           (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"));
       } catch (e) { /* private mode */ }
@@ -336,9 +385,8 @@
 <div class="wrap">
 
   <nav class="theme-bar" id="theme_bar" aria-label="theme switch">
-    <button type="button" class="th-pal" data-set-palette="nes" aria-pressed="false">NES</button>
+    <button type="button" class="th-pal" data-set-palette="nes" aria-pressed="false" title="NES = Nintendo Entertainment System — the 8-bit console whose pixel chrome this theme imitates">NES</button>
     <button type="button" class="th-pal" data-set-palette="mono" aria-pressed="false">Mono</button>
-    <button type="button" class="th-pal" data-set-palette="mono-green" aria-pressed="false">Mono+</button>
     <button type="button" class="th-mode" id="mode_toggle" title="toggle light / dark">dark</button>
   </nav>
 
@@ -515,6 +563,13 @@
     { name: "API_KEY", value: "s3cr3t" },
   ];
 
+  // Guided invite lifecycle: the green circle + red line blink until the user
+  // turns content_from_vars on; that one toggle then draws a one-time rainbow
+  // ring around the yaml line and the inlined .env content that appear.
+  let invite_active = true;   // green circle + red line are showing
+  let rainbow_shown = false;  // the one-time rainbow has already played
+  let mark_rainbow = false;   // this render should wrap + draw the rainbow
+
   // Action options. Each is collapsed until expanded, then exposes an input
   // pre-filled with the action.yml default. Order mirrors the README example.
   const OPTIONS = [
@@ -562,15 +617,57 @@
     dim: (t) => `<span class="hl-dim">${esc(t)}</span>`,
   };
 
-  function hl_dotenv(text) {
-    return text.split("\n").map((line) => {
-      if (/^\s*#/.test(line)) return HL.comment(line);
-      const m = line.match(/^([A-Za-z_][A-Za-z0-9_]*)(=)([\s\S]*)$/);
-      if (!m) return esc(line);
-      const v = m[3];
-      const vh = /^(".*"|'.*')$/.test(v) ? HL.str(v) : esc(v);
-      return HL.key(m[1]) + HL.punct(m[2]) + vh;
-    }).join("\n");
+  function hl_dotenv_line(line) {
+    if (/^\s*#/.test(line)) return HL.comment(line);
+    const m = line.match(/^([A-Za-z_][A-Za-z0-9_]*)(=)([\s\S]*)$/);
+    if (!m) return esc(line);
+    const v = m[3];
+    const vh = /^(".*"|'.*')$/.test(v) ? HL.str(v) : esc(v);
+    return HL.key(m[1]) + HL.punct(m[2]) + vh;
+  }
+
+  // How many leading lines of the generated .env are inlined content_from_vars
+  // values — the block the rainbow ring should hug. 0 when the option is off.
+  function content_block_lines(env) {
+    const cfv = opt_val("content_from_vars_include_pattern");
+    if (!cfv) return 0;
+    let re; try { re = new RegExp(cfv); } catch (e) { return 0; }
+    const matched = vars.filter((v) => re.test(v.name));
+    if (!matched.length) return 0;
+    const block = matched.map((v) => v.value).join("\n");
+    if (!env.startsWith(block)) return 0;
+    return block.split("\n").length;
+  }
+
+  // The content var's name (a multi-line value), used while the invite is live
+  // to mark its line in the .env with the red line. Off (the invite default),
+  // its value lands as a single escaped string — exactly what the tip fixes.
+  function invite_content_key() {
+    if (!invite_active) return null;
+    const cvar = vars.find((v) => v.value.includes("\n"));
+    return cvar ? cvar.name : null;
+  }
+
+  // Render the .env. `lead` wraps the inlined content block for the one-time
+  // rainbow ring; `redKey` underlines that var's value with the invite red line.
+  function hl_dotenv(text, opts) {
+    opts = opts || {};
+    const redKey = opts.redKey || null;
+    const lines = text.split("\n").map((line) => {
+      const m = !/^\s*#/.test(line) && line.match(/^([A-Za-z_][A-Za-z0-9_]*)(=)([\s\S]*)$/);
+      if (m && redKey && m[1] === redKey) {
+        const v = m[3];
+        const vh = /^(".*"|'.*')$/.test(v) ? HL.str(v) : esc(v);
+        return HL.key(m[1]) + HL.punct(m[2]) + `<span class="try-host">${vh}${RED_LINE}</span>`;
+      }
+      return hl_dotenv_line(line);
+    });
+    if (opts.lead > 0 && opts.lead <= lines.length) {
+      const head = lines.slice(0, opts.lead).join("\n");
+      const tail = lines.slice(opts.lead).join("\n");
+      return `<span id="rb_env_host" class="rb-host">${head}</span>` + (tail ? "\n" + tail : "");
+    }
+    return lines.join("\n");
   }
 
   // --- yaml fragment: action usage that mirrors the current config ------------
@@ -608,7 +705,14 @@
     ];
     if (items.length || dc) {
       lines.push("        " + HL.key("with") + HL.punct(":"));
-      for (const [k, v] of items) lines.push("          " + HL.key(k) + HL.punct(":") + " " + yaml_value_html(v));
+      for (const [k, v] of items) {
+        let body = HL.key(k) + HL.punct(":") + " " + yaml_value_html(v);
+        // one-time rainbow target: hug just the freshly-appeared option line
+        if (mark_rainbow && k === "content_from_vars_include_pattern") {
+          body = `<span id="rb_yaml_host" class="rb-host">${body}</span>`;
+        }
+        lines.push("          " + body);
+      }
       if (dc) {
         lines.push("          " + HL.key("dotenv_content") + HL.punct(":") + " " + HL.punct("|"));
         for (const l of dc.replace(/\n$/, "").split("\n")) lines.push("            " + esc(l));
@@ -629,9 +733,13 @@
     const rows = kind === "vars" ? vars : secrets;
     const masked = kind === "secrets";
     $(kind + "_list").innerHTML = rows.map((r, idx) => {
-      const val = masked ? "••••••••" : esc(r.value.replace(/\n/g, " "));
+      // show real var values verbatim, including multi-line content, so the
+      // "value is a whole file fragment" intent is obvious. secrets stay masked.
+      const multi = !masked && r.value.includes("\n");
+      const val = masked ? "••••••••" : esc(r.value);
+      const cls = multi ? "kv-val kv-multiline" : "kv-val";
       return `<li class="kv-row">` +
-        `<div class="kv-main"><span class="kv-name">${esc(r.name)}</span><span class="kv-val">${val}</span></div>` +
+        `<div class="kv-main"><span class="kv-name">${esc(r.name)}</span><span class="${cls}">${val}</span></div>` +
         `<div class="kv-actions"><button type="button" data-edit="${kind}:${idx}">Edit</button>` +
         `<button type="button" data-del="${kind}:${idx}">Remove</button></div></li>`;
     }).join("");
@@ -642,7 +750,8 @@
     try { env = genv(sources_for()); }
     catch (e) { $("error").textContent = e.message; return; }
     $("error").textContent = "";
-    $("output").innerHTML = hl_dotenv(env || "(empty)");
+    const lead = mark_rainbow ? content_block_lines(env || "") : 0;
+    $("output").innerHTML = hl_dotenv(env || "(empty)", { lead, redKey: invite_content_key() });
     $("yaml").innerHTML = build_yaml();
     // reflect each option's on/off effect: disable inert inputs, mark active
     for (const o of OPTIONS) {
@@ -653,6 +762,12 @@
       if (on) det.setAttribute("data-active", "");
       else det.removeAttribute("data-active");
     }
+    // the markup is now in the DOM — draw the one-time rainbow over it once
+    if (mark_rainbow) {
+      mark_rainbow = false;
+      rainbow_shown = true;
+      play_rainbow();
+    }
   }
 
   // --- build the options accordion -------------------------------------------
@@ -662,6 +777,37 @@
     `<span class="try-wrap" id="try_circle" aria-hidden="true">` +
     `<svg viewBox="0 0 90 60"><path d="M45 8 C22 4 8 18 11 32 C14 47 40 54 60 50 C80 46 84 30 76 18 C70 9 54 6 40 10"/></svg>` +
     `<span class="try-label">try!</span></span>`;
+
+  // Red companion mark for the invited content value (red via CSS .try-line).
+  const RED_LINE =
+    `<svg class="try-line" viewBox="0 0 120 14" preserveAspectRatio="none" aria-hidden="true">` +
+    `<path d="M3 9 C28 3 46 12 64 7 C82 2 100 11 117 6"/></svg>`;
+
+  // Self-contained rainbow ring; the gradient id is unique per instance so two
+  // rings can coexist. preserveAspectRatio="none" stretches it to hug the box.
+  function rainbow_svg(gid) {
+    return `<svg class="rb-ring" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">` +
+      `<defs><linearGradient id="${gid}" x1="0" y1="0" x2="1" y2="0">` +
+      `<stop offset="0" stop-color="#ff3b30"/><stop offset=".2" stop-color="#ff9500"/>` +
+      `<stop offset=".4" stop-color="#ffcc00"/><stop offset=".6" stop-color="#34c759"/>` +
+      `<stop offset=".8" stop-color="#0a84ff"/><stop offset="1" stop-color="#bf5af2"/>` +
+      `</linearGradient></defs>` +
+      `<path d="M50 7 C24 6 8 24 9 50 C10 77 30 95 52 93 C77 91 93 72 91 47 C89 23 70 8 46 9" stroke="url(#${gid})"/>` +
+      `</svg>`;
+  }
+
+  // Draw the one-time rings around the freshly-appeared yaml line and .env
+  // content block, then remove them after the draw + fade finishes.
+  function play_rainbow() {
+    let n = 0;
+    for (const id of ["rb_yaml_host", "rb_env_host"]) {
+      const host = $(id);
+      if (host) host.insertAdjacentHTML("beforeend", rainbow_svg("rbg_" + (n++)));
+    }
+    setTimeout(() => {
+      for (const r of document.querySelectorAll(".rb-ring")) r.remove();
+    }, 4600);
+  }
 
   $("opts").innerHTML = OPTIONS.map((o) => {
     const field = o.multiline
@@ -675,6 +821,8 @@
   }).join("");
 
   function dismiss_try() {
+    if (!invite_active) return;
+    invite_active = false; // the caller re-renders, dropping the .env red line
     const c = $("try_circle");
     if (c) c.remove();
   }
@@ -689,6 +837,7 @@
     chk.addEventListener("click", (e) => e.stopPropagation()); // don't toggle <details>
     chk.addEventListener("change", () => {
       if (chk.checked) inp.closest(".opt").open = true; // reveal value when enabling
+      if (o.invite && chk.checked && !rainbow_shown) mark_rainbow = true; // accept the tip -> rainbow
       if (o.invite) dismiss_try();
       render();
     });
