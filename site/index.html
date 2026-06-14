@@ -553,20 +553,28 @@
     { name: "API_KEY", value: "s3cr3t" },
   ];
 
-  // Guided invite lifecycle: the looping guide composition runs until the user
-  // either turns content_from_vars on (which completes it with the one-time
-  // rainbow rings) or edits/removes the CONFIG content var (which just ends it).
-  let invite_active = true;   // the looping guide composition is running
-  let rainbow_shown = false;  // the one-time rainbow has already played
-  let mark_rainbow = false;   // this render should wrap + draw the rainbow
+  // Guided invite lifecycle, in two chained phases. Each runs the looping guide
+  // composition pointing at one option's checkbox; accepting that option
+  // completes the phase with one-time rainbow rings, then the next phase starts.
+  //   phase 0 -> content_from_vars_include_pattern (inline CONFIG as content)
+  //   phase 1 -> vars_exclude_pattern (drop the now-redundant literal CONFIG=…)
+  // Editing/removing the CONFIG var ends the whole sequence early (no rainbow).
+  const INVITE_PHASES = [
+    { optKey: "content_from_vars_include_pattern", envMode: "lead" },
+    { optKey: "vars_exclude_pattern", envMode: "all" },
+  ];
+  let invite_phase = 0;        // index into INVITE_PHASES; === length when done
+  let invite_active = true;    // the looping guide composition is running
+  let pending_rainbow = null;  // { yamlKey, envMode } the next render should draw
+  const current_invite_opt = () => (invite_active ? INVITE_PHASES[invite_phase].optKey : null);
 
   // Action options. Each is collapsed until expanded, then exposes an input
   // pre-filled with the action.yml default. Order mirrors the README example.
   const OPTIONS = [
     { key: "dotenv_path", hint: "output file path", def: "./.env" },
-    { key: "content_from_vars_include_pattern", hint: "regex — inline matching var values as raw content", def: "", init: "CONFIG", invite: true, open: true },
+    { key: "content_from_vars_include_pattern", hint: "regex — inline matching var values as raw content", def: "", init: "CONFIG", open: true },
     { key: "vars_include_pattern", hint: "regex", def: ".*" },
-    { key: "vars_exclude_pattern", hint: "regex — overrides include on conflict", def: IMPOSSIBLE },
+    { key: "vars_exclude_pattern", hint: "regex — overrides include on conflict", def: IMPOSSIBLE, init: "CONFIG" },
     { key: "content_from_secrets_include_pattern", hint: "regex — inline matching secret values as raw content", def: "" },
     { key: "secrets_include_pattern", hint: "regex", def: ".*" },
     { key: "secrets_exclude_pattern", hint: "regex — overrides include on conflict", def: IMPOSSIBLE },
@@ -652,7 +660,10 @@
       }
       return hl_dotenv_line(line);
     });
-    if (opts.lead > 0 && opts.lead <= lines.length) {
+    if (opts.wrapAll) { // rainbow around the whole, now-clean .env (phase 1)
+      return `<span id="rb_env_host" class="rb-host">${lines.join("\n")}</span>`;
+    }
+    if (opts.lead > 0 && opts.lead <= lines.length) { // rainbow around the inlined block (phase 0)
       const head = lines.slice(0, opts.lead).join("\n");
       const tail = lines.slice(opts.lead).join("\n");
       return `<span id="rb_env_host" class="rb-host">${head}</span>` + (tail ? "\n" + tail : "");
@@ -697,8 +708,8 @@
       lines.push("        " + HL.key("with") + HL.punct(":"));
       for (const [k, v] of items) {
         let body = HL.key(k) + HL.punct(":") + " " + yaml_value_html(v);
-        // one-time rainbow target: hug just the freshly-appeared option line
-        if (mark_rainbow && k === "content_from_vars_include_pattern") {
+        // one-time rainbow target: hug just the freshly-accepted option line
+        if (pending_rainbow && k === pending_rainbow.yamlKey) {
           body = `<span id="rb_yaml_host" class="rb-host">${body}</span>`;
         }
         lines.push("          " + body);
@@ -742,8 +753,10 @@
     try { env = genv(sources_for()); }
     catch (e) { $("error").textContent = e.message; return; }
     $("error").textContent = "";
-    const lead = mark_rainbow ? content_block_lines(env || "") : 0;
-    $("output").innerHTML = hl_dotenv(env || "(empty)", { lead, anchorKey: invite_content_key() });
+    const envMode = pending_rainbow ? pending_rainbow.envMode : null;
+    const lead = envMode === "lead" ? content_block_lines(env || "") : 0;
+    $("output").innerHTML = hl_dotenv(env || "(empty)",
+      { lead, wrapAll: envMode === "all", anchorKey: invite_content_key() });
     $("yaml").innerHTML = build_yaml();
     // reflect each option's on/off effect: disable inert inputs, mark active
     for (const o of OPTIONS) {
@@ -755,9 +768,8 @@
       else det.removeAttribute("data-active");
     }
     // the markup is now in the DOM — draw the one-time rainbow over it once
-    if (mark_rainbow) {
-      mark_rainbow = false;
-      rainbow_shown = true;
+    if (pending_rainbow) {
+      pending_rainbow = null;
       play_rainbow();
     }
     layout_guide(); // re-anchor (or clear) the looping invite composition
@@ -826,7 +838,8 @@
     const svg = $("guide");
     if (!svg) return;
     const board = svg.parentElement;
-    const A = $("var_content_anchor"), B = $("env_content_anchor"), C = $("chk_content_from_vars_include_pattern");
+    const opt = current_invite_opt(); // the phase's checkbox is the green-circle target
+    const A = $("var_content_anchor"), B = $("env_content_anchor"), C = opt && $("chk_" + opt);
     if (!invite_active || !A || !B || !C || !board.clientWidth) { svg.innerHTML = ""; return; }
     const br = board.getBoundingClientRect();
     const rel = (el) => {
@@ -884,11 +897,19 @@
     chk.addEventListener("click", (e) => e.stopPropagation()); // don't toggle <details>
     chk.addEventListener("change", () => {
       if (chk.checked) inp.closest(".opt").open = true; // reveal value when enabling
-      // accepting the tip ends the invite and completes it with the rainbow
-      if (o.invite && chk.checked && !rainbow_shown) mark_rainbow = true;
-      if (o.invite) invite_active = false;
+      // accepting the current phase's tip completes it (rainbow) and advances
+      if (chk.checked && o.key === current_invite_opt()) accept_invite();
       render();
     });
+  }
+
+  // Complete the current invite phase: queue its rainbow, then either start the
+  // next phase's guide or finish the sequence.
+  function accept_invite() {
+    const phase = INVITE_PHASES[invite_phase];
+    pending_rainbow = { yamlKey: phase.optKey, envMode: phase.envMode };
+    invite_phase += 1;
+    if (invite_phase >= INVITE_PHASES.length) invite_active = false; // all done
   }
 
   // --- add/edit dialog for vars & secrets ------------------------------------
