@@ -2,7 +2,7 @@
 name: script-ops-audit
 description: Audit of all technical script operations (action.yml, JUSTFILE, e2e workflows). Load when reviewing or fixing genv's bash/jq pipeline, version tooling, or CI tests.
 created: 2026-06-12
-updated: 2026-06-12
+updated: 2026-06-13
 tags: [ci, scripts, action]
 relates: []
 ---
@@ -25,11 +25,7 @@ jobs (content-only). Verified via a faithful local pipeline simulator. See
 
 Then user bumped to v1.0.1 ("improve testing"); suite renamed to
 `e2e.self-invocation.v1.0.1.yml` and refs/trigger bumped to `@v1.0.1` ([[005.log]]).
-Accepted consequence: PR CI is RED until the v1.0.1 tag is published (self-
-invocation pins the published artifact). Move to `done` after v1.0.1 is tagged
-and the suite goes green.
 
-Status blocked on CI: user opens a PR, watches the GitHub Actions e2e runs, and
-moves the task to `done` only once they pass. Unaddressed-by-design: e2e still
-pins the published tag, so it smoke-tests the shipped artifact, not pre-merge
-local code.
+Closed 2026-06-13: v1.0.1 tag published and the cumulative e2e suite green
+([[007.log]]). Unaddressed-by-design: e2e pins the published tag, so it
+smoke-tests the shipped artifact, not pre-merge local code.

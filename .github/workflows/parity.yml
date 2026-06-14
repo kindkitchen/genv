@@ -1,0 +1,32 @@
+name: parity
+
+# Verifies the raw bash action (action.yml) resolves to the same env as the
+# engine (jsr:@kindkitchen/genv) over the fixture corpus. Deno-only: parity
+# imports the published engine, so no submodule checkout is needed; jq/bash are
+# preinstalled on the runner. Path-filtered to stay fast.
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - action.yml
+      - parity/**
+      - .github/workflows/parity.yml
+  pull_request:
+    paths:
+      - action.yml
+      - parity/**
+      - .github/workflows/parity.yml
+
+permissions: {}
+
+jobs:
+  parity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: action.yml vs jsr:@kindkitchen/genv
+        working-directory: parity
+        run: deno task test

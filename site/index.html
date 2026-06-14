@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="light dark" />
+  <title>genv — generate dotenv from GitHub vars and secrets</title>
+  <meta name="description" content="genv is a GitHub Action that computes a dotenv file from your repository vars and secrets following a flexible merge strategy. Try it live." />
+  <!-- Single static file by design: no build step, no node_modules. The
+       playground reuses the published engine (jsr:@kindkitchen/genv) in-browser
+       via esm.sh. Visual direction: 8-bit pixel (Press Start 2P headings +
+       VT323 body, hard borders + offset shadows, sharp corners). A single
+       monochrome palette with light and dark variants, toggled top-right
+       (data-mode on <html>, persisted). The yaml/.env highlighting and the
+       hand-drawn guide marks always carry color. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      --mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+      --font-head: "Press Start 2P", var(--sans);
+      --font-body: "VT323", var(--mono);
+      /* bright syntax palette — default; correct on every dark .out screen */
+      --hl-key: #79c0ff; --hl-str: #7ee787; --hl-expr: #ffa657;
+      --hl-punct: #8b949e; --hl-comment: #8b949e; --hl-dim: #8b949e;
+    }
+
+    /* ===== single monochrome palette, light + dark. data-mode on <html>
+       selects the variant (set by the top-right toggle and an early inline
+       script; persisted in localStorage). ===== */
+
+    /* monochrome light — also the no-attribute default */
+    :root {
+      color-scheme: light;
+      --bg: #ffffff; --panel: #fafafa; --field: #ffffff;
+      --ink: #1a1a1a; --muted: #6b6b6b; --line: #e2e2e2; --line-strong: #c9c9c9;
+      --edge: #1a1a1a; --screen: #1a1a1a; --screen-ink: #f2f2f2;
+      --accent: #1a1a1a; --on-accent: #ffffff; --grid: transparent;
+      --head-ink: var(--ink); --head-shadow: none;
+      --pill-bg: transparent; --pill-ink: var(--ink);
+    }
+    :root[data-mode="dark"] {
+      color-scheme: dark;
+      --bg: #161616; --panel: #1e1e1e; --field: #161616;
+      --ink: #ededed; --muted: #9a9a9a; --line: #333333; --line-strong: #444444;
+      --edge: #ededed; --screen: #ededed; --screen-ink: #161616;
+      --accent: #ededed; --on-accent: #161616;
+      /* light .out screen -> dark syntax palette */
+      --hl-key: #0550ae; --hl-str: #0a7c2f; --hl-expr: #953800;
+      --hl-punct: #6e7781; --hl-comment: #6e7781; --hl-dim: #6e7781;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--bg); color: var(--ink);
+      font-family: var(--sans); font-size: 1rem; line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+    }
+    .wrap { max-width: 64rem; margin-inline: auto; padding: 1.5rem 1.25rem 5rem; }
+
+    header.hero { padding: 3rem 0 1rem; }
+    header.hero h1 { font-size: clamp(2.2rem, 7vw, 3.2rem); margin: .6rem 0 0; letter-spacing: -.02em; }
+    header.hero .tag { color: var(--muted); font-size: 1.1rem; margin-top: .2rem; }
+    header.hero .lead { max-width: 44rem; margin: 1rem 0 0; color: var(--ink); font-size: 1.1rem; }
+    /* jump-to-docs link beside the title: inline with the heading but spaced
+       off it, in the legible sans so it reads at a glance. */
+    .doc-link { font-family: var(--sans); font-size: .9rem; font-weight: 600; vertical-align: middle; margin-left: 1.1rem; white-space: nowrap; }
+    .pill {
+      display: inline-block; padding: .25rem .6rem; font-size: .72rem;
+      letter-spacing: .04em; text-transform: uppercase; color: var(--muted);
+      border: 1px solid var(--line-strong); border-radius: 999px;
+    }
+
+    section { margin-top: 3.5rem; }
+    h2 { font-size: 1.4rem; margin: 0 0 1.1rem; letter-spacing: -.01em; }
+    h3 { font-size: 1rem; margin: 1.6rem 0 .6rem; }
+
+    .panel {
+      background: var(--panel); color: var(--ink);
+      border: 1px solid var(--line); border-radius: 10px; padding: 1.5rem;
+    }
+    .board { position: relative; display: grid; gap: 1.25rem; grid-template-columns: 1fr; }
+    @media (min-width: 56rem) { .board { grid-template-columns: 1fr 1fr; align-items: start; } }
+
+    label { display: block; font-size: .92rem; font-weight: 600; margin: 1.1rem 0 .35rem; }
+    label .hint { font-weight: 400; font-size: .82rem; color: var(--muted); }
+    textarea, input[type=text] {
+      width: 100%; font-family: var(--mono); font-size: .92rem; line-height: 1.5;
+      color: var(--ink); background: var(--field);
+      border: 1px solid var(--line-strong); border-radius: 6px; padding: .55rem .7rem;
+    }
+    textarea:focus, input[type=text]:focus { outline: 2px solid var(--ink); outline-offset: 1px; border-color: var(--ink); }
+    textarea { resize: vertical; min-height: 6.5rem; overflow: hidden; }
+    .grid2 { display: grid; gap: .25rem 1rem; grid-template-columns: 1fr 1fr; }
+
+    .hint { color: var(--muted); font-weight: 400; font-size: .82rem; }
+
+    /* left: github-style config builder */
+    .cfg-group { margin-top: 1.6rem; }
+    .cfg-group:first-child { margin-top: 0; }
+    .cfg-head { display: flex; align-items: baseline; justify-content: space-between; gap: .75rem; margin-bottom: .6rem; }
+    .cfg-head h3 { margin: 0; }
+
+    .btn {
+      font-family: var(--sans); font-size: .85rem; cursor: pointer;
+      border: 1px solid var(--line-strong); background: var(--field); color: var(--ink);
+      padding: .35rem .7rem; border-radius: 6px; white-space: nowrap;
+    }
+    .btn:hover { border-color: var(--ink); }
+    .btn-primary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+    .btn-primary:hover { opacity: .85; }
+
+    .kv-list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 8px; }
+    .kv-list:empty::after { content: "none yet"; display: block; padding: .8rem; color: var(--muted); font-size: .88rem; }
+    .kv-row { display: flex; align-items: center; gap: .75rem; padding: .55rem .75rem; border-top: 1px solid var(--line); }
+    .kv-row:first-child { border-top: 0; }
+    .kv-main { min-width: 0; flex: 1; display: flex; align-items: baseline; gap: .6rem; }
+    .kv-name { font-family: var(--mono); font-weight: 600; font-size: .9rem; }
+    .kv-val { font-family: var(--mono); font-size: .85rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* multi-line var values (e.g. CONFIG, a whole file fragment) show verbatim
+       so the "value is content" intent reads at a glance. */
+    .kv-val.kv-multiline { white-space: pre-wrap; overflow: visible; text-overflow: clip; word-break: break-word; }
+    .kv-row:has(.kv-multiline) { align-items: flex-start; }
+    .kv-actions { flex: none; display: flex; gap: .4rem; }
+    .kv-actions button {
+      font-family: var(--sans); font-size: .8rem; cursor: pointer; color: var(--muted);
+      background: transparent; border: 1px solid transparent; border-radius: 5px; padding: .2rem .45rem;
+    }
+    .kv-actions button:hover { color: var(--ink); border-color: var(--line-strong); }
+
+    .opt { border: 1px solid var(--line); border-radius: 8px; margin-top: .5rem; }
+    .opt > summary {
+      cursor: pointer; padding: .55rem .75rem; list-style: none; position: relative;
+      display: flex; align-items: center; gap: .5rem; flex-wrap: wrap;
+    }
+    .opt > summary::-webkit-details-marker { display: none; }
+    .opt > summary::before { content: "+"; color: var(--muted); font-family: var(--mono); }
+    .opt[open] > summary::before { content: "\2212"; }
+    .opt > summary code { background: transparent; padding: 0; font-weight: 600; }
+    .chk-wrap { position: relative; display: inline-flex; align-items: center; flex: none; }
+    .opt-toggle { width: 1rem; height: 1rem; margin: 0; cursor: pointer; accent-color: var(--ink); }
+    .opt[data-active] > summary code { color: var(--ink); }
+    .opt[data-active] > summary::after { content: "on"; font-size: .72rem; color: var(--muted); border: 1px solid var(--line-strong); border-radius: 999px; padding: 0 .4rem; }
+    .opt-body { padding: 0 .75rem .7rem; }
+    .opt-body input:disabled, .opt-body textarea:disabled { opacity: .5; cursor: not-allowed; }
+
+    /* the whole playground collapses like an option (open by default): its
+       heading is the toggle, with the same +/- affordance as the options. */
+    .play-section > summary {
+      cursor: pointer; list-style: none; display: flex; align-items: center; gap: .6rem; margin-bottom: 1.1rem;
+    }
+    .play-section > summary::-webkit-details-marker { display: none; }
+    .play-section > summary::before { content: "+"; color: var(--muted); font-family: var(--mono); font-size: 1.3rem; line-height: 1; }
+    .play-section[open] > summary::before { content: "\2212"; }
+    .play-section > summary h2 { margin: 0; }
+
+    /* ===== invite guide: one looping hand-drawn composition over the board
+       that walks the eye CONFIG var -> Generated .env -> the option checkbox.
+       Anchor boxes are measured in JS (layout_guide); each segment animates on
+       a shared 7s cycle so the tour reads in order, then repeats. ===== */
+    .guide {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      overflow: visible; pointer-events: none; z-index: 4;
+    }
+    .guide path {
+      fill: none; stroke-linecap: round; stroke-linejoin: round;
+      stroke-dasharray: 100; stroke-dashoffset: 100; opacity: 0;
+    }
+    /* colour/width is one axis, the sequence slot another — so the second tip
+       can reuse the early slots (starting at the red line) without the yellow. */
+    .gk-ycircle { stroke: #ffcf33; stroke-width: 2.4; }
+    .gk-yarrow  { stroke: #ffcf33; stroke-width: 2.2; }
+    .gk-redline { stroke: #e5484d; stroke-width: 2.8; }
+    .gk-garrow  { stroke: #46c97a; stroke-width: 2.4; }
+    .gk-gcircle { stroke: #57f08a; stroke-width: 3; }
+    .gt1 { animation: g-seg1 7s ease-in-out infinite; }
+    .gt2 { animation: g-seg2 7s ease-in-out infinite; }
+    .gt3 { animation: g-seg3 7s ease-in-out infinite; }
+    .gt4 { animation: g-seg4 7s ease-in-out infinite; }
+    .gt5 { animation: g-seg5 7s ease-in-out infinite; }
+
+    /* each segment: hidden, draw within its staggered window, hold, fade before
+       the cycle restarts — so the marks appear one after another, in order. */
+    @keyframes g-seg1 { 0%{opacity:0;stroke-dashoffset:100} 1%{opacity:1} 12%{stroke-dashoffset:0} 88%{opacity:1;stroke-dashoffset:0} 96%,100%{opacity:0;stroke-dashoffset:0} }
+    @keyframes g-seg2 { 0%,13%{opacity:0;stroke-dashoffset:100} 15%{opacity:1} 26%{stroke-dashoffset:0} 88%{opacity:1;stroke-dashoffset:0} 94%,100%{opacity:0;stroke-dashoffset:0} }
+    @keyframes g-seg3 { 0%,27%{opacity:0;stroke-dashoffset:100} 29%{opacity:1} 42%{stroke-dashoffset:0} 88%{opacity:1;stroke-dashoffset:0} 94%,100%{opacity:0;stroke-dashoffset:0} }
+    @keyframes g-seg4 { 0%,44%{opacity:0;stroke-dashoffset:100} 46%{opacity:1} 58%{stroke-dashoffset:0} 88%{opacity:1;stroke-dashoffset:0} 94%,100%{opacity:0;stroke-dashoffset:0} }
+    @keyframes g-seg5 { 0%,58%{opacity:0;stroke-dashoffset:100} 60%{opacity:1} 76%{stroke-dashoffset:0} 90%{opacity:1;stroke-dashoffset:0} 98%,100%{opacity:0;stroke-dashoffset:0} }
+
+    /* one-time rainbow circle drawn once around the line/content that appears
+       after the invite is accepted — in the Workflow step and the fixed .env. */
+    .rb-host { position: relative; display: inline-block; vertical-align: top; }
+    /* wider + thinner than the text box so the ring frames without crowding. */
+    .rb-ring {
+      position: absolute; left: -1.4ch; top: -.45em; width: calc(100% + 2.8ch); height: calc(100% + .9em);
+      overflow: visible; pointer-events: none;
+    }
+    .rb-ring path {
+      fill: none; stroke-width: 1.6; stroke-linecap: round;
+      stroke-dasharray: 330; stroke-dashoffset: 330;
+      animation: rb-draw 1.1s ease-out forwards, rb-fade 1s ease-in 3s forwards;
+    }
+    @keyframes rb-draw { to { stroke-dashoffset: 0; } }
+    @keyframes rb-fade { to { opacity: 0; } }
+
+    @media (prefers-reduced-motion: reduce) {
+      .guide path,
+      .rb-ring path { animation: none; opacity: 1; stroke-dashoffset: 0; }
+    }
+
+    /* right: reactive outputs */
+    .out-col { display: grid; gap: 1.25rem; align-content: start; }
+    .out-head { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+    .out-head h3 { margin: 0; }
+    pre.out {
+      margin: .8rem 0 0; padding: 1rem; min-height: 6rem;
+      background: var(--screen); color: var(--screen-ink); overflow: auto;
+      border-radius: 8px;
+      font-family: var(--mono); font-size: .9rem; line-height: 1.55;
+      white-space: pre-wrap; word-break: break-word;
+    }
+    /* the workflow step is real yaml: keep lines verbatim and scroll on
+       overflow rather than wrapping (wrapping would distort indentation). */
+    pre.out#yaml { white-space: pre; word-break: normal; }
+    .err {
+      color: #fff; background: #c0392b; border-radius: 6px;
+      padding: .55rem .75rem; margin-top: .8rem; font-size: .9rem;
+    }
+    .err:empty { display: none; }
+
+    /* syntax highlighting — the .out screen inverts per theme, so token
+       colors do too: a dark-terminal palette on the light theme's dark
+       screen, a light-editor palette on the dark theme's light screen. */
+    .hl-key { color: var(--hl-key); }
+    .hl-str { color: var(--hl-str); }
+    .hl-expr { color: var(--hl-expr); }
+    .hl-punct { color: var(--hl-punct); }
+    .hl-comment { color: var(--hl-comment); font-style: italic; }
+    .hl-dim { color: var(--hl-dim); }
+
+    /* The two output screens use VSCode's default One Dark / One Light token
+       colors exclusively, regardless of the active palette — the Workflow step
+       as yaml, the Generated .env as a dotenv file. Only the focused tokens are
+       remapped; --hl-comment / --hl-dim stay theme-driven so the dimmed,
+       not-focused scaffolding keeps its muted look. One Dark on the dark screen
+       (NES, mono-light), One Light on the light screen (mono-dark). */
+    pre.out#yaml, pre.out#output {
+      --hl-key: #e06c75; --hl-str: #98c379; --hl-expr: #d19a66; --hl-punct: #abb2bf;
+    }
+    :root[data-mode="dark"] pre.out#yaml,
+    :root[data-mode="dark"] pre.out#output {
+      --hl-key: #e45649; --hl-str: #50a14f; --hl-expr: #986801; --hl-punct: #383a42;
+    }
+    /* green hand-drawn underline marking the deploy command as the goal */
+    .goal { position: relative; display: inline-block; }
+    .goal .goal-line {
+      position: absolute; left: 0; bottom: -.42em; width: 100%; height: .5em;
+      overflow: visible; pointer-events: none;
+    }
+    .goal .goal-line path { fill: none; stroke: #5fd98a; stroke-width: 2.6; stroke-linecap: round; }
+
+    .copy {
+      font-size: .82rem; font-family: var(--sans); border: 1px solid var(--line-strong);
+      background: transparent; color: var(--ink); padding: .35rem .7rem; cursor: pointer;
+      border-radius: 6px;
+    }
+    .copy:hover { background: var(--ink); color: var(--bg); }
+
+    /* shared add/edit dialog */
+    dialog {
+      border: 1px solid var(--line-strong); border-radius: 10px; padding: 0;
+      background: var(--panel); color: var(--ink); max-width: 30rem; width: calc(100% - 2rem);
+    }
+    dialog::backdrop { background: rgba(0, 0, 0, .5); }
+    .dlg-form { padding: 1.25rem; display: grid; gap: .35rem; }
+    .dlg-form h3 { margin: 0 0 .5rem; }
+    .dlg-form label { margin: .6rem 0 .15rem; }
+    .dlg-actions { display: flex; justify-content: flex-end; gap: .5rem; margin-top: 1rem; }
+    .dlg-err { color: #c0392b; font-size: .85rem; min-height: 1.2em; margin: .3rem 0 0; }
+
+    footer.site { margin-top: 4rem; border-top: 1px solid var(--line); padding-top: 1.5rem; color: var(--muted); font-size: .92rem; }
+    a { color: var(--ink); text-decoration: underline; text-underline-offset: 2px; text-decoration-color: var(--line-strong); }
+    a:hover { text-decoration-color: currentColor; }
+    code { font-family: var(--mono); font-size: .88em; background: rgba(128, 128, 128, .14); padding: .1rem .3rem; border-radius: 4px; }
+    ul, ol { padding-left: 1.3rem; }
+    li { margin: .35rem 0; }
+
+    table.spec { width: 100%; border-collapse: collapse; margin-top: .8rem; font-size: .9rem; }
+    table.spec th, table.spec td { text-align: left; vertical-align: top; padding: .55rem .7rem; border: 1px solid var(--line); }
+    table.spec th { font-size: .85rem; background: var(--panel); }
+    table.spec td code { white-space: pre-wrap; word-break: break-word; }
+
+    /* ----- pixel pass: full 8-bit/NES chrome, shared by every palette. Colors
+       come from the active palette's variables — only the yaml/.env syntax
+       highlighting and the green hand-drawn marks are fixed colors. --edge
+       drives the hard outline and the offset (no-blur) shadow. ----- */
+    :root {
+      --px-shadow: 4px 4px 0 var(--edge);
+      --px-shadow-sm: 3px 3px 0 var(--edge);
+    }
+    html { font-size: 118.75%; }                 /* VT323 runs small — scale up */
+    body {
+      font-family: var(--font-body);
+      background-image:
+        linear-gradient(var(--grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+      background-size: 16px 16px;
+    }
+    body, textarea, input[type=text], .btn, .copy, .kv-name, .kv-val,
+    .kv-actions button, pre.out, code { font-family: var(--font-body); }
+    h1, h2, h3, .pill { font-family: var(--font-head); letter-spacing: 0; }
+    header.hero h1 { font-size: clamp(1.8rem, 7vw, 2.8rem); letter-spacing: 0; }
+    h2 { font-size: 1rem; line-height: 1.5; }
+    h3 { font-size: .8rem; line-height: 1.5; }
+    h1, h2 { color: var(--head-ink); text-shadow: var(--head-shadow); }
+
+    /* sharp corners + hard outlines + offset shadows on every raised box */
+    .panel, pre.out, dialog, .kv-list, .opt,
+    textarea, input[type=text], .btn, .copy, .pill { border-radius: 0; }
+    .panel { border: 2px solid var(--edge); box-shadow: var(--px-shadow); }
+    pre.out, textarea, input[type=text], .kv-list, .opt { border: 2px solid var(--edge); }
+    pre.out { font-size: 1.05rem; line-height: 1.5; }
+    textarea, input[type=text] { font-size: 1rem; }
+    .pill { border: 2px solid var(--edge); box-shadow: var(--px-shadow-sm); background: var(--pill-bg); color: var(--pill-ink); }
+    .btn, .copy { border: 2px solid var(--edge); box-shadow: var(--px-shadow-sm); }
+    .btn:active, .copy:active { transform: translate(3px, 3px); box-shadow: none; }
+    dialog { border: 2px solid var(--edge); box-shadow: var(--px-shadow); }
+    table.spec th, table.spec td { border: 2px solid var(--edge); }
+
+    /* Documentation is prose, not chrome: inside this section swap the pixel
+       body font for a legible sans (and a real mono for code / spec cells) at a
+       comfortable reading size. Section headings keep their 8-bit character;
+       colors are untouched. */
+    #docs p, #docs li {
+      font-family: var(--sans); font-size: .92rem; line-height: 1.65; letter-spacing: .01em;
+    }
+    #docs table.spec th, #docs table.spec td {
+      font-family: var(--sans); font-size: .9rem; line-height: 1.55;
+    }
+    #docs code, #docs table.spec td code { font-family: var(--mono); font-size: .82em; letter-spacing: 0; }
+
+    /* palette accent on the active controls */
+    .btn-primary { background: var(--accent); color: var(--on-accent); border-color: var(--edge); }
+    .copy:hover { background: var(--accent); color: var(--on-accent); }
+    textarea:focus, input[type=text]:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
+    .opt-toggle { accent-color: var(--accent); }
+
+    /* top-right theme switch: three palette buttons + a light/dark toggle */
+    .theme-bar {
+      position: fixed; top: .6rem; right: .6rem; z-index: 50;
+      display: flex; gap: .3rem; padding: .3rem;
+      background: var(--panel); border: 2px solid var(--edge); box-shadow: var(--px-shadow-sm);
+    }
+    .theme-bar button {
+      font-family: var(--font-body); font-size: 1rem; line-height: 1; cursor: pointer;
+      background: var(--field); color: var(--ink);
+      border: 2px solid var(--edge); border-radius: 0; padding: .25rem .45rem;
+    }
+    .theme-bar button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+    .theme-bar button:active { transform: translate(2px, 2px); }
+    @media (max-width: 40rem) {
+      .theme-bar { top: .4rem; right: .4rem; gap: .2rem; padding: .2rem; }
+      .theme-bar button { font-size: .85rem; padding: .15rem .3rem; }
+    }
+  </style>
+  <script>
+    /* Set the mode before first paint to avoid a flash; the module below wires
+       the toggle. Single monochrome palette; mode follows OS unless persisted. */
+    (function () {
+      try {
+        document.documentElement.setAttribute("data-mode",
+          localStorage.getItem("genv_mode") ||
+          (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"));
+      } catch (e) { /* private mode */ }
+    })();
+  </script>
+</head>
+<body>
+<div class="wrap">
+
+  <nav class="theme-bar" id="theme_bar" aria-label="theme switch">
+    <button type="button" class="th-mode" id="mode_toggle" title="toggle light / dark">dark</button>
+  </nav>
+
+  <header class="hero">
+    <span class="pill">GitHub Action</span>
+    <h1>genv <a class="doc-link" href="#docs">docs ↓</a></h1>
+    <div class="tag"><em>gen env</em></div>
+    <p class="lead">
+      Build a <code>.env</code> from your repository <strong>vars</strong> and
+      <strong>secrets</strong> — include/exclude by pattern, treat a value as a
+      whole file fragment, and merge sources in order with last-win. Change your
+      environment without touching your workflow yaml.
+    </p>
+  </header>
+
+  <!-- ===================================================================
+       1. PLAYGROUND — action inputs -> engine sources -> live .env.
+       Uses the published engine jsr:@kindkitchen/genv via esm.sh; the
+       from_action mapping mirrors parity/adapter.ts.
+       =================================================================== -->
+  <section id="playground" aria-labelledby="play-h">
+    <details class="play-section" id="play_details" open>
+    <summary><h2 id="play-h">Suppose this is your GutHib repo's settings</h2></summary>
+    <p class="hint" style="margin:-.6rem 0 1.2rem">
+      Set up repository <code>vars</code> and <code>secrets</code> like you would
+      on GitHub, tweak the options, and watch the workflow step and resulting
+      <code>.env</code> derive on the right.
+    </p>
+    <div class="board">
+      <!-- LEFT: github-style repository configuration builder -->
+      <div class="panel" id="config">
+        <p class="hint" style="margin:0 0 1.2rem">
+          Pretend this is your repo's <strong>Settings → Secrets and variables → Actions</strong>,
+          plus the action's options.
+        </p>
+        <div class="cfg-group">
+          <div class="cfg-head">
+            <h3>Variables <span class="hint">repository <code>vars</code></span></h3>
+            <button class="btn" type="button" data-add="vars">New variable</button>
+          </div>
+          <ul class="kv-list" id="vars_list"></ul>
+        </div>
+
+        <div class="cfg-group">
+          <div class="cfg-head">
+            <h3>Secrets <span class="hint">repository <code>secrets</code></span></h3>
+            <button class="btn" type="button" data-add="secrets">New secret</button>
+          </div>
+          <ul class="kv-list" id="secrets_list"></ul>
+        </div>
+
+        <div class="cfg-group">
+          <h3>Action options <span class="hint">expand to override a default</span></h3>
+          <div id="opts"></div>
+        </div>
+
+        <div class="err" id="error" role="alert"></div>
+      </div>
+
+      <!-- RIGHT: reactive derivation of the left config -->
+      <div class="out-col">
+        <div class="panel">
+          <div class="out-head">
+            <h3>Workflow step</h3>
+            <button class="copy" type="button" data-copy="yaml">copy</button>
+          </div>
+          <pre class="out" id="yaml">(loading…)</pre>
+        </div>
+        <div class="panel">
+          <div class="out-head">
+            <h3>Generated .env</h3>
+            <button class="copy" type="button" data-copy="output">copy</button>
+          </div>
+          <pre class="out" id="output">(loading engine…)</pre>
+        </div>
+      </div>
+      <!-- looping guided composition (CONFIG -> .env -> checkbox); JS-positioned -->
+      <svg class="guide" id="guide" aria-hidden="true"></svg>
+    </div>
+    </details>
+  </section>
+
+  <!-- shared add/edit dialog for vars and secrets -->
+  <dialog id="kv_dialog">
+    <form class="dlg-form" id="kv_form">
+      <h3 id="dlg_title">New variable</h3>
+      <label for="dlg_name">Name</label>
+      <input id="dlg_name" type="text" spellcheck="false" autocomplete="off" placeholder="MY_VARIABLE" />
+      <label for="dlg_value">Value</label>
+      <textarea id="dlg_value" spellcheck="false" rows="3"></textarea>
+      <p class="dlg-err" id="dlg_err"></p>
+      <div class="dlg-actions">
+        <button type="button" class="btn" id="dlg_cancel">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="dlg_save">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- ===================================================================
+       2. WHY GENV — key points (mirror README). TODO(spa): expand copy + visuals.
+       =================================================================== -->
+  <section id="landing" aria-labelledby="landing-h">
+    <h2 id="landing-h">Why genv</h2>
+    <div class="panel">
+      <ul>
+        <li><strong>Minimal coupling</strong> — update vars/secrets (keys, not just values) and rerun; no new commit to your yaml.</li>
+        <li><strong>Flexible declaration</strong> — include/exclude patterns, value-vs-content, and merge order let you shape the file.</li>
+        <li><strong>Last-win merge</strong> — ordered sources resolve conflicts predictably.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ===================================================================
+       3. DOCUMENTATION — manual prose + a generated "Full spec" from action.yml.
+       TODO(spa): write prose; add a generator filling the marker below.
+       =================================================================== -->
+  <section id="docs" aria-labelledby="docs-h">
+    <h2 id="docs-h">Documentation</h2>
+    <div class="panel">
+      <p>The action runs five ordered steps, each appending to the file:</p>
+      <ol>
+        <li><code>content_from_vars_include_pattern</code> — matching vars' values are inlined as raw content.</li>
+        <li><code>vars_include_pattern</code> / <code>vars_exclude_pattern</code> — remaining vars become <code>KEY=value</code>.</li>
+        <li><code>content_from_secrets_include_pattern</code> — matching secrets' values inlined as content.</li>
+        <li><code>secrets_include_pattern</code> / <code>secrets_exclude_pattern</code> — remaining secrets become <code>KEY=value</code>.</li>
+        <li><code>dotenv_content</code> — literal block, appended last (absolute priority).</li>
+      </ol>
+      <h3>Full spec</h3>
+      <!-- GENERATED:action-inputs:start -->
+      <table class="spec">
+        <thead><tr><th>input</th><th>description</th><th>default</th></tr></thead>
+        <tbody>
+          <tr><td><code>vars_obj</code></td><td>In most cases may be toJson(vars). Or any other key-value json string</td><td><code>{}</code></td></tr>
+          <tr><td><code>secrets_obj</code></td><td>In most cases may be toJson(secrets). Or any other key-value json stringO</td><td><code>{}</code></td></tr>
+          <tr><td><code>dotenv_path</code></td><td>The path, where generated dotenv file will be placed (the default is ./.env)</td><td><code>./.env</code></td></tr>
+          <tr><td><code>dotenv_content</code></td><td>The literal content of the dotenv file. Will be placed at the bottom of generated file.</td><td><em>—</em></td></tr>
+          <tr><td><code>vars_include_pattern</code></td><td>Regex by which the keys from vars will be included. (default: "*")</td><td><code>.*</code></td></tr>
+          <tr><td><code>vars_exclude_pattern</code></td><td>Regex by which the keys from vars will not be included. Will override `include_vars_pattern` on conflict. (default: null)</td><td><code>NOTING_this_is_hardcoded_impossible_pattern{10}</code></td></tr>
+          <tr><td><code>secrets_include_pattern</code></td><td>Regex by which the keys from secrets will be included. (default: "*")</td><td><code>.*</code></td></tr>
+          <tr><td><code>secrets_exclude_pattern</code></td><td>Regex by which the keys from secrets will not be included. Will override `include_secrets_pattern` on conflict. (default: null)</td><td><code>NOTING_this_is_hardcoded_impossible_pattern{10}</code></td></tr>
+          <tr><td><code>content_from_vars_include_pattern</code></td><td>Regex by which the keys from vars will be treated as part of content (many lines with variables) and these contents will be attached. (default: null)</td><td><em>—</em></td></tr>
+          <tr><td><code>content_from_secrets_include_pattern</code></td><td>Regex by which the keys from secrets will be treated as part of content (many lines with variables) and these contents will be attached. (default: null)</td><td><em>—</em></td></tr>
+        </tbody>
+      </table>
+      <!-- GENERATED:action-inputs:end -->
+    </div>
+  </section>
+
+  <!-- ===================================================================
+       COMMENTS — giscus (GitHub Discussions). TODO(spa): wire repo id/category.
+       =================================================================== -->
+  <footer class="site" id="comments">
+    <p>
+      genv is open source — <a href="https://github.com/kindkitchen/genv">kindkitchen/genv</a>.
+      Engine: <a href="https://jsr.io/@kindkitchen/genv"><code>jsr:@kindkitchen/genv</code></a>.
+    </p>
+    <!-- TODO(spa): giscus <script> embed -->
+  </footer>
+
+</div>
+
+<script type="module">
+  import { genv } from "https://esm.sh/jsr/@kindkitchen/genv@0.1.0";
+
+  // The published action tag this fragment points at (mirrors README usage).
+  const VERSION = "v1.0.1";
+  // action.yml default for *_exclude: a sentinel that matches no real key.
+  const IMPOSSIBLE = "NOTING_this_is_hardcoded_impossible_pattern{10}";
+
+  const $ = (id) => document.getElementById(id);
+
+  // --- left-side state: repository vars/secrets, like GitHub settings ---------
+  let vars = [
+    { name: "PORT", value: "3000" },
+    { name: "CONFIG", value: "DB=postgres\nDB_PORT=5432" },
+  ];
+  let secrets = [
+    { name: "API_KEY", value: "s3cr3t" },
+  ];
+
+  // Guided invite lifecycle, in two chained phases. Each runs the looping guide
+  // composition pointing at one option's checkbox; accepting that option
+  // completes the phase with one-time rainbow rings, then the next phase starts.
+  //   phase 0 -> content_from_vars_include_pattern (inline CONFIG as content)
+  //   phase 1 -> vars_exclude_pattern (drop the now-redundant literal CONFIG=…)
+  // Editing/removing the CONFIG var ends the whole sequence early (no rainbow).
+  const INVITE_PHASES = [
+    { optKey: "content_from_vars_include_pattern", envMode: "lead" },
+    { optKey: "vars_exclude_pattern", envMode: "all" },
+  ];
+  let invite_phase = 0;        // index into INVITE_PHASES; === length when done
+  let invite_active = true;    // the looping guide composition is running
+  let pending_rainbow = null;  // { yamlKey, envMode } the next render should draw
+  const current_invite_opt = () => (invite_active ? INVITE_PHASES[invite_phase].optKey : null);
+
+  // Action options. Each is collapsed until expanded, then exposes an input
+  // pre-filled with the action.yml default. Order mirrors the README example.
+  const OPTIONS = [
+    { key: "dotenv_path", hint: "output file path", def: "./.env" },
+    { key: "content_from_vars_include_pattern", hint: "regex — inline matching var values as raw content", def: "", init: "CONFIG", open: true },
+    { key: "vars_include_pattern", hint: "regex", def: ".*" },
+    { key: "vars_exclude_pattern", hint: "regex — overrides include on conflict", def: IMPOSSIBLE, init: "CONFIG" },
+    { key: "content_from_secrets_include_pattern", hint: "regex — inline matching secret values as raw content", def: "" },
+    { key: "secrets_include_pattern", hint: "regex", def: ".*" },
+    { key: "secrets_exclude_pattern", hint: "regex — overrides include on conflict", def: IMPOSSIBLE },
+    { key: "dotenv_content", hint: "literal block, appended last", def: "", multiline: true },
+  ];
+  const opt_def = Object.fromEntries(OPTIONS.map((o) => [o.key, o.def]));
+  // An option takes effect only when its checkbox is on; otherwise the doc
+  // default applies and the option is omitted from the workflow fragment.
+  const opt_on = (key) => $("chk_" + key).checked;
+  const opt_raw = (key) => $("opt_" + key).value;
+  const opt_val = (key) => (opt_on(key) ? opt_raw(key) : opt_def[key]);
+
+  const esc = (s) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+  const to_obj = (rows) => Object.fromEntries(rows.map((r) => [r.name, r.value]));
+
+  // --- engine wiring: 5 ordered action steps -> engine sources ---------------
+  function sources_for() {
+    const v = to_obj(vars);
+    const s = to_obj(secrets);
+    const cfv = opt_val("content_from_vars_include_pattern");
+    const cfs = opt_val("content_from_secrets_include_pattern");
+    const out = [];
+    if (cfv) out.push({ data: v, include: cfv, content: cfv });
+    out.push({ data: v, include: opt_val("vars_include_pattern") || ".*", exclude: opt_val("vars_exclude_pattern") || IMPOSSIBLE });
+    if (cfs) out.push({ data: s, include: cfs, content: cfs });
+    out.push({ data: s, include: opt_val("secrets_include_pattern") || ".*", exclude: opt_val("secrets_exclude_pattern") || IMPOSSIBLE });
+    out.push({ data: opt_val("dotenv_content") || "" });
+    return out;
+  }
+
+  // --- syntax highlighting (lightweight, emits escaped <span>s) ---------------
+  const HL = {
+    key: (t) => `<span class="hl-key">${esc(t)}</span>`,
+    str: (t) => `<span class="hl-str">${esc(t)}</span>`,
+    expr: (t) => `<span class="hl-expr">${esc(t)}</span>`,
+    punct: (t) => `<span class="hl-punct">${esc(t)}</span>`,
+    comment: (t) => `<span class="hl-comment">${esc(t)}</span>`,
+    dim: (t) => `<span class="hl-dim">${esc(t)}</span>`,
+  };
+
+  function hl_dotenv_line(line) {
+    if (/^\s*#/.test(line)) return HL.comment(line);
+    const m = line.match(/^([A-Za-z_][A-Za-z0-9_]*)(=)([\s\S]*)$/);
+    if (!m) return esc(line);
+    const v = m[3];
+    const vh = /^(".*"|'.*')$/.test(v) ? HL.str(v) : esc(v);
+    return HL.key(m[1]) + HL.punct(m[2]) + vh;
+  }
+
+  // How many leading lines of the generated .env are inlined content_from_vars
+  // values — the block the rainbow ring should hug. 0 when the option is off.
+  function content_block_lines(env) {
+    const cfv = opt_val("content_from_vars_include_pattern");
+    if (!cfv) return 0;
+    let re; try { re = new RegExp(cfv); } catch (e) { return 0; }
+    const matched = vars.filter((v) => re.test(v.name));
+    if (!matched.length) return 0;
+    const block = matched.map((v) => v.value).join("\n");
+    if (!env.startsWith(block)) return 0;
+    return block.split("\n").length;
+  }
+
+  // The content var's name (a multi-line value). While the invite is live its
+  // value is the guide's .env anchor — off (the invite default) it lands as a
+  // single escaped string, exactly what the tip fixes.
+  function invite_content_key() {
+    if (!invite_active) return null;
+    const cvar = vars.find((v) => v.value.includes("\n"));
+    return cvar ? cvar.name : null;
+  }
+
+  // Render the .env. `lead` wraps the inlined content block for the one-time
+  // rainbow ring; `anchorKey` tags that var's value so the guide can target it.
+  function hl_dotenv(text, opts) {
+    opts = opts || {};
+    const anchorKey = opts.anchorKey || null;
+    const lines = text.split("\n").map((line) => {
+      const m = !/^\s*#/.test(line) && line.match(/^([A-Za-z_][A-Za-z0-9_]*)(=)([\s\S]*)$/);
+      if (m && anchorKey && m[1] === anchorKey) {
+        const v = m[3];
+        const vh = /^(".*"|'.*')$/.test(v) ? HL.str(v) : esc(v);
+        return HL.key(m[1]) + HL.punct(m[2]) + `<span id="env_content_anchor">${vh}</span>`;
+      }
+      return hl_dotenv_line(line);
+    });
+    if (opts.wrapAll) { // rainbow around the whole, now-clean .env (phase 1)
+      return `<span id="rb_env_host" class="rb-host">${lines.join("\n")}</span>`;
+    }
+    if (opts.lead > 0 && opts.lead <= lines.length) { // rainbow around the inlined block (phase 0)
+      const head = lines.slice(0, opts.lead).join("\n");
+      const tail = lines.slice(opts.lead).join("\n");
+      return `<span id="rb_env_host" class="rb-host">${head}</span>` + (tail ? "\n" + tail : "");
+    }
+    return lines.join("\n");
+  }
+
+  // --- yaml fragment: action usage that mirrors the current config ------------
+  // Real workflow-step indentation: `- uses` at 0, `with:` at 2, its keys at 4,
+  // a block scalar's content at 6.
+  function yaml_value_html(v) {
+    if (v.startsWith("${{")) return HL.expr(v);     // github expression, unquoted
+    return HL.str(JSON.stringify(v));               // safe double-quoted scalar
+  }
+
+  function build_yaml() {
+    const items = [];
+    if (opt_on("dotenv_path")) items.push(["dotenv_path", opt_raw("dotenv_path")]);
+    if (vars.length) items.push(["vars_obj", "${{ toJson(vars) }}"]);
+    if (secrets.length) items.push(["secrets_obj", "${{ toJson(secrets) }}"]);
+    for (const key of [
+      "content_from_vars_include_pattern", "vars_include_pattern", "vars_exclude_pattern",
+      "content_from_secrets_include_pattern", "secrets_include_pattern", "secrets_exclude_pattern",
+    ]) {
+      if (opt_on(key)) items.push([key, opt_raw(key)]);
+    }
+    const dc = opt_on("dotenv_content") ? opt_raw("dotenv_content") : "";
+
+    // Muted scaffolding (black/white) frames the genv step so the fragment reads
+    // as a full workflow; the genv step keeps its colors as the focus, and the
+    // downstream deploy step consuming the generated .env is marked as the goal.
+    const lines = [
+      HL.dim("name: deploy"),
+      HL.dim("on: push"),
+      HL.dim("jobs:"),
+      HL.dim("  deploy:"),
+      HL.dim("    runs-on: ubuntu-latest"),
+      HL.dim("    steps:"),
+      "      " + HL.punct("- ") + HL.key("uses") + HL.punct(":") + " " + HL.str("kindkitchen/genv@" + VERSION),
+    ];
+    if (items.length || dc) {
+      lines.push("        " + HL.key("with") + HL.punct(":"));
+      for (const [k, v] of items) {
+        let body = HL.key(k) + HL.punct(":") + " " + yaml_value_html(v);
+        // one-time rainbow target: hug just the freshly-accepted option line
+        if (pending_rainbow && k === pending_rainbow.yamlKey) {
+          body = `<span id="rb_yaml_host" class="rb-host">${body}</span>`;
+        }
+        lines.push("          " + body);
+      }
+      if (dc) {
+        lines.push("          " + HL.key("dotenv_content") + HL.punct(":") + " " + HL.punct("|"));
+        for (const l of dc.replace(/\n$/, "").split("\n")) lines.push("            " + esc(l));
+      }
+    }
+    lines.push("      " + HL.dim("- name: deploy"));
+    lines.push(
+      "        " + HL.dim("run: ") + "deno run " +
+      `<span class="goal">--env-file=.env` +
+      `<svg class="goal-line" viewBox="0 0 120 14" aria-hidden="true"><path d="M3 9 C28 3 46 12 64 7 C82 2 100 11 117 6"/></svg>` +
+      `</span>  ` + HL.comment("# the .env genv generated above"),
+    );
+    return lines.join("\n");
+  }
+
+  // --- rendering -------------------------------------------------------------
+  function render_list(kind) {
+    const rows = kind === "vars" ? vars : secrets;
+    const masked = kind === "secrets";
+    const akey = kind === "vars" ? invite_content_key() : null; // CONFIG row = guide anchor
+    $(kind + "_list").innerHTML = rows.map((r, idx) => {
+      // show real var values verbatim, including multi-line content, so the
+      // "value is a whole file fragment" intent is obvious. secrets stay masked.
+      const multi = !masked && r.value.includes("\n");
+      const val = masked ? "••••••••" : esc(r.value);
+      const cls = multi ? "kv-val kv-multiline" : "kv-val";
+      const anchor = akey && r.name === akey ? ` id="var_content_anchor"` : "";
+      return `<li class="kv-row"${anchor}>` +
+        `<div class="kv-main"><span class="kv-name">${esc(r.name)}</span><span class="${cls}">${val}</span></div>` +
+        `<div class="kv-actions"><button type="button" data-edit="${kind}:${idx}">Edit</button>` +
+        `<button type="button" data-del="${kind}:${idx}">Remove</button></div></li>`;
+    }).join("");
+  }
+
+  function render() {
+    let env;
+    try { env = genv(sources_for()); }
+    catch (e) { $("error").textContent = e.message; return; }
+    $("error").textContent = "";
+    const envMode = pending_rainbow ? pending_rainbow.envMode : null;
+    const lead = envMode === "lead" ? content_block_lines(env || "") : 0;
+    $("output").innerHTML = hl_dotenv(env || "(empty)",
+      { lead, wrapAll: envMode === "all", anchorKey: invite_content_key() });
+    $("yaml").innerHTML = build_yaml();
+    // reflect each option's on/off effect: disable inert inputs, mark active
+    for (const o of OPTIONS) {
+      const on = opt_on(o.key);
+      const inp = $("opt_" + o.key);
+      inp.disabled = !on;
+      const det = inp.closest(".opt");
+      if (on) det.setAttribute("data-active", "");
+      else det.removeAttribute("data-active");
+    }
+    // the markup is now in the DOM — draw the one-time rainbow over it once
+    if (pending_rainbow) {
+      pending_rainbow = null;
+      play_rainbow();
+    }
+    layout_guide(); // re-anchor (or clear) the looping invite composition
+  }
+
+  // --- invite guide: one looping hand-drawn composition over the board -------
+  // Phase 0 walks the eye CONFIG var (yellow circle) -> yellow arrow -> the .env
+  // value (red line, drawn right-to-left) -> green arrow -> the option checkbox
+  // (green circle). Phase 1 starts at the red line (no yellow), then the green
+  // arrow + circle. Positions come from measured anchor boxes; sequencing +
+  // looping live in CSS (g-seg* keyframes on a shared 7s cycle).
+
+  const r1 = (n) => Math.round(n * 10) / 10; // tidy 1-decimal coords
+  // stable signed jitter in [-1,1] from a seed — deterministic per position so
+  // the hand-drawn wobble doesn't re-shuffle on every re-render.
+  const jit = (seed, i) => { const s = Math.sin(seed + i * 12.9898) * 43758.5453; return (s - Math.floor(s)) * 2 - 1; };
+
+  // A bowed, slightly wavering arrow with a hand-drawn (two-stroke) head baked
+  // into the same path so it draws last, at the tip.
+  function hand_arrow(sx, sy, ex, ey, bow) {
+    const dx = ex - sx, dy = ey - sy;
+    const len = Math.hypot(dx, dy) || 1;
+    const nx = -dy / len, ny = dx / len; // unit perpendicular
+    const sd = sx + sy;
+    const c1x = sx + dx * 0.28 + nx * (bow + jit(sd, 1) * 2.4), c1y = sy + dy * 0.28 + ny * (bow + jit(sd, 1) * 2.4);
+    const c2x = sx + dx * 0.72 + nx * (bow * 0.5 + jit(sd, 2) * 2.4), c2y = sy + dy * 0.72 + ny * (bow * 0.5 + jit(sd, 2) * 2.4);
+    let d = `M ${r1(sx)} ${r1(sy)} C ${r1(c1x)} ${r1(c1y)} ${r1(c2x)} ${r1(c2y)} ${r1(ex)} ${r1(ey)}`;
+    const ang = Math.atan2(ey - c2y, ex - c2x), L = 11, sp = 0.5; // ~29deg wings
+    const w1x = ex - L * Math.cos(ang - sp), w1y = ey - L * Math.sin(ang - sp);
+    const w2x = ex - L * Math.cos(ang + sp), w2y = ey - L * Math.sin(ang + sp);
+    return d + ` M ${r1(w1x)} ${r1(w1y)} L ${r1(ex)} ${r1(ey)} L ${r1(w2x)} ${r1(w2y)}`;
+  }
+
+  // Hand-drawn right-to-left underline (starts at the right) with a little wave.
+  function hand_underline(x0, x1, y) {
+    return `M ${r1(x1)} ${r1(y)} C ${r1(x0 + (x1 - x0) * 0.7)} ${r1(y + 5)} ` +
+      `${r1(x0 + (x1 - x0) * 0.33)} ${r1(y - 2)} ${r1(x0)} ${r1(y + 3)}`;
+  }
+
+  // Hand-drawn rounded-square loop hugging a box: square-ish so it frames the
+  // content instead of cutting across it, with per-edge bow + per-corner radius
+  // jitter and an overshoot at the close for a sketched, marker-pen feel.
+  function sketch_rect(bx, by, bw, bh, pad, rad) {
+    const x0 = bx - pad, y0 = by - pad, x1 = bx + bw + pad, y1 = by + bh + pad;
+    const baseR = Math.max(4, Math.min(rad, (x1 - x0) / 2 - 1, (y1 - y0) / 2 - 1));
+    const mx = (x0 + x1) / 2, my = (y0 + y1) / 2, sd = x0 + y0 * 0.7;
+    const bow = (i) => 2.4 + jit(sd, i) * 1.6;                 // outward edge bow
+    const rc = (i) => baseR * (0.86 + Math.abs(jit(sd, i)) * 0.22); // corner radius
+    const bT = bow(1), bR = bow(2), bB = bow(3), bL = bow(4);
+    const rTL = rc(5), rTR = rc(6), rBR = rc(7), rBL = rc(8);
+    const over = Math.min(18, (x1 - x0) / 3);
+    return [
+      `M ${r1(x0 + rTL)} ${r1(y0)}`,
+      `Q ${r1(mx)} ${r1(y0 - bT)} ${r1(x1 - rTR)} ${r1(y0)}`,    // top
+      `Q ${r1(x1)} ${r1(y0)} ${r1(x1)} ${r1(y0 + rTR)}`,        // top-right
+      `Q ${r1(x1 + bR)} ${r1(my)} ${r1(x1)} ${r1(y1 - rBR)}`,   // right
+      `Q ${r1(x1)} ${r1(y1)} ${r1(x1 - rBR)} ${r1(y1)}`,        // bottom-right
+      `Q ${r1(mx)} ${r1(y1 + bB)} ${r1(x0 + rBL)} ${r1(y1)}`,   // bottom
+      `Q ${r1(x0)} ${r1(y1)} ${r1(x0)} ${r1(y1 - rBL)}`,        // bottom-left
+      `Q ${r1(x0 - bL)} ${r1(my)} ${r1(x0)} ${r1(y0 + rTL)}`,   // left
+      `Q ${r1(x0)} ${r1(y0)} ${r1(x0 + rTL)} ${r1(y0)}`,        // top-left
+      `L ${r1(x0 + rTL + over)} ${r1(y0)}`,                     // overshoot the close
+    ].join(" ");
+  }
+
+  // Build the composition SVG from the three anchor boxes (board coordinates).
+  // phase 0 = full sequence; phase 1 = start at the red line (no yellow).
+  function build_guide_svg(a, b, c, phase) {
+    const P = (cls, slot, d) => `<path class="${cls} ${slot}" pathLength="100" d="${d}"/>`;
+    const red = hand_underline(b.x, b.x + b.w, b.y + b.h + 5);
+    const gArrow = hand_arrow(b.cx, b.y + b.h + 9, c.x + c.w + 11, c.cy, 44);
+    const gCircle = sketch_rect(c.x, c.y, c.w, c.h, 9, 9);
+    if (phase === 0) {
+      return P("gk-ycircle", "gt1", sketch_rect(a.x, a.y, a.w, a.h, 7, 13)) +
+        P("gk-yarrow", "gt2", hand_arrow(a.x + a.w + 4, a.cy, b.x - 12, b.cy, -36)) +
+        P("gk-redline", "gt3", red) +
+        P("gk-garrow", "gt4", gArrow) +
+        P("gk-gcircle", "gt5", gCircle);
+    }
+    return P("gk-redline", "gt1", red) +
+      P("gk-garrow", "gt2", gArrow) +
+      P("gk-gcircle", "gt3", gCircle);
+  }
+
+  // Measure anchors relative to the board and (re)draw the guide, or clear it
+  // when the invite is over / any anchor is missing (e.g. playground collapsed).
+  function layout_guide() {
+    const svg = $("guide");
+    if (!svg) return;
+    const board = svg.parentElement;
+    const opt = current_invite_opt(); // the phase's checkbox is the green-circle target
+    const A = $("var_content_anchor"), B = $("env_content_anchor"), C = opt && $("chk_" + opt);
+    if (!invite_active || !A || !B || !C || !board.clientWidth) { svg.innerHTML = ""; return; }
+    const br = board.getBoundingClientRect();
+    const rel = (el) => {
+      const r = el.getBoundingClientRect();
+      const x = r.left - br.left, y = r.top - br.top;
+      return { x, y, w: r.width, h: r.height, cx: x + r.width / 2, cy: y + r.height / 2 };
+    };
+    svg.setAttribute("viewBox", `0 0 ${Math.round(br.width)} ${Math.round(br.height)}`);
+    svg.innerHTML = build_guide_svg(rel(A), rel(B), rel(C), invite_phase);
+  }
+
+  // Self-contained rainbow ring; the gradient id is unique per instance so two
+  // rings can coexist. preserveAspectRatio="none" stretches it to hug the box.
+  function rainbow_svg(gid) {
+    return `<svg class="rb-ring" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">` +
+      `<defs><linearGradient id="${gid}" x1="0" y1="0" x2="1" y2="0">` +
+      `<stop offset="0" stop-color="#ff3b30"/><stop offset=".2" stop-color="#ff9500"/>` +
+      `<stop offset=".4" stop-color="#ffcc00"/><stop offset=".6" stop-color="#34c759"/>` +
+      `<stop offset=".8" stop-color="#0a84ff"/><stop offset="1" stop-color="#bf5af2"/>` +
+      `</linearGradient></defs>` +
+      `<path d="M50 7 C24 6 8 24 9 50 C10 77 30 95 52 93 C77 91 93 72 91 47 C89 23 70 8 46 9" stroke="url(#${gid})"/>` +
+      `</svg>`;
+  }
+
+  // Draw the one-time rings around the freshly-appeared yaml line and .env
+  // content block, then remove them after the draw + fade finishes.
+  function play_rainbow() {
+    let n = 0;
+    for (const id of ["rb_yaml_host", "rb_env_host"]) {
+      const host = $(id);
+      if (host) host.insertAdjacentHTML("beforeend", rainbow_svg("rbg_" + (n++)));
+    }
+    setTimeout(() => {
+      for (const r of document.querySelectorAll(".rb-ring")) r.remove();
+    }, 4600);
+  }
+
+  $("opts").innerHTML = OPTIONS.map((o) => {
+    const field = o.multiline
+      ? `<textarea id="opt_${o.key}" spellcheck="false" rows="3"></textarea>`
+      : `<input id="opt_${o.key}" type="text" spellcheck="false" />`;
+    return `<details class="opt"${o.open ? " open" : ""}><summary>` +
+      `<span class="chk-wrap"><input type="checkbox" class="opt-toggle" id="chk_${o.key}" title="toggle this option's effect" /></span>` +
+      `<code>${o.key}</code> <span class="hint">${o.hint}</span></summary>` +
+      `<div class="opt-body">${field}</div></details>`;
+  }).join("");
+
+  for (const o of OPTIONS) {
+    const inp = $("opt_" + o.key);
+    inp.value = o.init ?? o.def;
+    inp.addEventListener("input", render);
+
+    const chk = $("chk_" + o.key);
+    chk.checked = !!o.on;
+    chk.addEventListener("click", (e) => e.stopPropagation()); // don't toggle <details>
+    chk.addEventListener("change", () => {
+      if (chk.checked) inp.closest(".opt").open = true; // reveal value when enabling
+      // accepting the current phase's tip completes it (rainbow) and advances
+      if (chk.checked && o.key === current_invite_opt()) accept_invite();
+      render();
+    });
+  }
+
+  // Complete the current invite phase: queue its rainbow, then either start the
+  // next phase's guide or finish the sequence.
+  function accept_invite() {
+    const phase = INVITE_PHASES[invite_phase];
+    pending_rainbow = { yamlKey: phase.optKey, envMode: phase.envMode };
+    invite_phase += 1;
+    if (invite_phase >= INVITE_PHASES.length) invite_active = false; // all done
+  }
+
+  // --- add/edit dialog for vars & secrets ------------------------------------
+  const dlg = $("kv_dialog");
+  let editing = null; // { kind, index } | { kind, index: null } for new
+
+  function open_dialog(kind, index) {
+    editing = { kind, index };
+    const isNew = index === null;
+    const noun = kind === "vars" ? "variable" : "secret";
+    $("dlg_title").textContent = (isNew ? "New " : "Edit ") + noun;
+    const row = isNew ? { name: "", value: "" } : (kind === "vars" ? vars : secrets)[index];
+    $("dlg_name").value = row.name;
+    $("dlg_value").value = row.value;
+    $("dlg_err").textContent = "";
+    dlg.showModal();
+    $("dlg_name").focus();
+  }
+
+  $("kv_form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const name = $("dlg_name").value.trim();
+    const value = $("dlg_value").value;
+    if (!name) { $("dlg_err").textContent = "Name is required."; return; }
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) {
+      $("dlg_err").textContent = "Name must be letters, digits or _ and not start with a digit.";
+      return;
+    }
+    const rows = editing.kind === "vars" ? vars : secrets;
+    const dup = rows.findIndex((r) => r.name === name);
+    if (dup !== -1 && dup !== editing.index) { $("dlg_err").textContent = "Name already exists."; return; }
+    // editing the content var (CONFIG) ends the invite — without the rainbow.
+    const touchedContent = editing.kind === "vars" && editing.index !== null &&
+      rows[editing.index] && rows[editing.index].value.includes("\n");
+    if (editing.index === null) rows.push({ name, value });
+    else rows[editing.index] = { name, value };
+    if (invite_active && touchedContent) invite_active = false;
+    dlg.close();
+    render_list(editing.kind);
+    render();
+  });
+
+  $("dlg_cancel").addEventListener("click", () => dlg.close());
+
+  document.addEventListener("click", (e) => {
+    const add = e.target.closest("[data-add]");
+    if (add) { open_dialog(add.dataset.add, null); return; }
+    const edit = e.target.closest("[data-edit]");
+    if (edit) { const [k, i] = edit.dataset.edit.split(":"); open_dialog(k, +i); return; }
+    const del = e.target.closest("[data-del]");
+    if (del) {
+      const [k, i] = del.dataset.del.split(":");
+      const arr = k === "vars" ? vars : secrets;
+      if (invite_active && k === "vars" && arr[+i] && arr[+i].value.includes("\n")) invite_active = false;
+      arr.splice(+i, 1);
+      render_list(k); render(); return;
+    }
+    const copy = e.target.closest("[data-copy]");
+    if (copy) {
+      navigator.clipboard.writeText($(copy.dataset.copy).textContent);
+      const prev = copy.textContent;
+      copy.textContent = "copied!";
+      setTimeout(() => (copy.textContent = prev), 1200);
+    }
+  });
+
+  // --- light/dark toggle, persisted; the button shows the active mode ---------
+  const html_el = document.documentElement;
+  function sync_theme() {
+    $("mode_toggle").textContent = html_el.getAttribute("data-mode");
+  }
+  $("mode_toggle").addEventListener("click", () => {
+    const next = html_el.getAttribute("data-mode") === "dark" ? "light" : "dark";
+    html_el.setAttribute("data-mode", next);
+    try { localStorage.setItem("genv_mode", next); } catch { /* private mode */ }
+    sync_theme();
+  });
+  sync_theme();
+
+  // --- keep the guide composition anchored as the layout shifts --------------
+  addEventListener("resize", layout_guide);
+  addEventListener("load", layout_guide); // web fonts can resize anchors late
+  $("play_details").addEventListener("toggle", layout_guide); // collapse hides it
+  if (window.ResizeObserver) new ResizeObserver(layout_guide).observe($("config"));
+
+  // --- init ------------------------------------------------------------------
+  render_list("vars");
+  render_list("secrets");
+  render();
+</script>
+</body>
+</html>

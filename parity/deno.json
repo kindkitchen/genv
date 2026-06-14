@@ -1,0 +1,10 @@
+{
+  "tasks": {
+    "test": "deno test --allow-run=bash --allow-read --allow-write --allow-env"
+  },
+  "imports": {
+    "@kindkitchen/genv": "jsr:@kindkitchen/genv@^0.1.0",
+    "@std/assert": "jsr:@std/assert@^1.0.0",
+    "@std/yaml": "jsr:@std/yaml@^1.0.0"
+  }
+}
