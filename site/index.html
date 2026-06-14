@@ -8,12 +8,11 @@
   <meta name="description" content="genv is a GitHub Action that computes a dotenv file from your repository vars and secrets following a flexible merge strategy. Try it live." />
   <!-- Single static file by design: no build step, no node_modules. The
        playground reuses the published engine (jsr:@kindkitchen/genv) in-browser
-       via esm.sh. Visual direction: 8-bit/NES pixel (Press Start 2P headings +
-       VT323 body, hard borders + offset shadows, sharp corners). Two palettes
-       — NES and monochrome — each with a light and dark variant,
-       chosen from the top-right switch (data-palette/data-mode on <html>,
-       persisted). The yaml/.env highlighting and the green hand-drawn marks
-       always carry color. -->
+       via esm.sh. Visual direction: 8-bit pixel (Press Start 2P headings +
+       VT323 body, hard borders + offset shadows, sharp corners). A single
+       monochrome palette with light and dark variants, toggled top-right
+       (data-mode on <html>, persisted). The yaml/.env highlighting and the
+       hand-drawn guide marks always carry color. -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet" />
@@ -28,11 +27,11 @@
       --hl-punct: #8b949e; --hl-comment: #8b949e; --hl-dim: #8b949e;
     }
 
-    /* ===== palettes: NES / monochrome, each light+dark.
-       data-palette + data-mode on <html> select one (set by the top-right
-       switch and an early inline script; persisted in localStorage). ===== */
+    /* ===== single monochrome palette, light + dark. data-mode on <html>
+       selects the variant (set by the top-right toggle and an early inline
+       script; persisted in localStorage). ===== */
 
-    /* monochrome — also the no-attribute default */
+    /* monochrome light — also the no-attribute default */
     :root {
       color-scheme: light;
       --bg: #ffffff; --panel: #fafafa; --field: #ffffff;
@@ -42,7 +41,7 @@
       --head-ink: var(--ink); --head-shadow: none;
       --pill-bg: transparent; --pill-ink: var(--ink);
     }
-    :root[data-palette="mono"][data-mode="dark"] {
+    :root[data-mode="dark"] {
       color-scheme: dark;
       --bg: #161616; --panel: #1e1e1e; --field: #161616;
       --ink: #ededed; --muted: #9a9a9a; --line: #333333; --line-strong: #444444;
@@ -51,28 +50,6 @@
       /* light .out screen -> dark syntax palette */
       --hl-key: #0550ae; --hl-str: #0a7c2f; --hl-expr: #953800;
       --hl-punct: #6e7781; --hl-comment: #6e7781; --hl-dim: #6e7781;
-    }
-
-    /* NES — closest to the skill reference */
-    :root[data-palette="nes"] {
-      color-scheme: light;
-      --bg: #5c94fc; --panel: #fdf6e3; --field: #ffffff;
-      --ink: #21130d; --muted: #7a6a55; --line: #21130d; --line-strong: #21130d;
-      --edge: #21130d; --screen: #0b1733; --screen-ink: #8ff088;
-      --accent: #e23b2e; --on-accent: #ffffff; --gold: #fac000;
-      --grid: rgba(255, 255, 255, .10);
-      --head-ink: var(--gold); --head-shadow: 3px 3px 0 var(--line);
-      --pill-bg: var(--accent); --pill-ink: #ffffff;
-    }
-    :root[data-palette="nes"][data-mode="dark"] {
-      color-scheme: dark;
-      --bg: #0a1024; --panel: #1a1336; --field: #221a44;
-      --ink: #f4ecd8; --muted: #b09be0; --line: #000000; --line-strong: #000000;
-      --edge: #000000; --screen: #05102a; --screen-ink: #8ff088;
-      --accent: #ff5a4d; --on-accent: #ffffff; --gold: #fac000;
-      --grid: rgba(255, 255, 255, .07);
-      --head-ink: var(--gold); --head-shadow: 3px 3px 0 var(--line);
-      --pill-bg: var(--accent); --pill-ink: #ffffff;
     }
     * { box-sizing: border-box; }
     body {
@@ -86,6 +63,9 @@
     header.hero h1 { font-size: clamp(2.2rem, 7vw, 3.2rem); margin: .6rem 0 0; letter-spacing: -.02em; }
     header.hero .tag { color: var(--muted); font-size: 1.1rem; margin-top: .2rem; }
     header.hero .lead { max-width: 44rem; margin: 1rem 0 0; color: var(--ink); font-size: 1.1rem; }
+    /* jump-to-docs link beside the title: inline with the heading but spaced
+       off it, in the legible sans so it reads at a glance. */
+    .doc-link { font-family: var(--sans); font-size: .9rem; font-weight: 600; vertical-align: middle; margin-left: 1.1rem; white-space: nowrap; }
     .pill {
       display: inline-block; padding: .25rem .6rem; font-size: .72rem;
       letter-spacing: .04em; text-transform: uppercase; color: var(--muted);
@@ -100,7 +80,7 @@
       background: var(--panel); color: var(--ink);
       border: 1px solid var(--line); border-radius: 10px; padding: 1.5rem;
     }
-    .board { display: grid; gap: 1.25rem; grid-template-columns: 1fr; }
+    .board { position: relative; display: grid; gap: 1.25rem; grid-template-columns: 1fr; }
     @media (min-width: 56rem) { .board { grid-template-columns: 1fr 1fr; align-items: start; } }
 
     label { display: block; font-size: .92rem; font-weight: 600; margin: 1.1rem 0 .35rem; }
@@ -165,40 +145,41 @@
     .opt-body { padding: 0 .75rem .7rem; }
     .opt-body input:disabled, .opt-body textarea:disabled { opacity: .5; cursor: not-allowed; }
 
-    /* one-time hand-drawn invite circle around a checkbox */
-    .try-wrap {
-      position: absolute; left: 50%; top: 50%; width: 3.1rem; height: 2.1rem;
-      transform: translate(-50%, -50%); pointer-events: none;
-      animation: try-fade 4.5s ease-in-out infinite;
+    /* the whole playground collapses like an option (open by default): its
+       heading is the toggle, with the same +/- affordance as the options. */
+    .play-section > summary {
+      cursor: pointer; list-style: none; display: flex; align-items: center; gap: .6rem; margin-bottom: 1.1rem;
     }
-    .try-wrap svg { width: 100%; height: 100%; overflow: visible; display: block; }
-    .try-wrap path {
-      fill: none; stroke: #5fd98a; stroke-width: 2.4; stroke-linecap: round;
-      stroke-dasharray: 260; stroke-dashoffset: 260;
-      animation: try-draw 4.5s ease-in-out infinite;
-    }
-    .try-label {
-      position: absolute; left: 100%; top: -.5rem; margin-left: .25rem;
-      color: #5fd98a; font-size: .78rem; font-weight: 700; font-style: italic;
-      white-space: nowrap; transform: rotate(-7deg);
-    }
-    @keyframes try-fade { 0%, 100% { opacity: 0; } 9% { opacity: 1; } 62% { opacity: 1; } 78% { opacity: 0; } }
-    @keyframes try-draw { 0% { stroke-dashoffset: 260; } 38% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: 0; } }
+    .play-section > summary::-webkit-details-marker { display: none; }
+    .play-section > summary::before { content: "+"; color: var(--muted); font-family: var(--mono); font-size: 1.3rem; line-height: 1; }
+    .play-section[open] > summary::before { content: "\2212"; }
+    .play-section > summary h2 { margin: 0; }
 
-    /* companion to the green invite circle: a red hand-drawn underline on the
-       content var's value, sharing the same blink/draw lifecycle. Both vanish
-       together the moment the user toggles content_from_vars. */
-    .try-host { position: relative; display: inline-block; overflow: visible; }
-    .try-line {
-      position: absolute; left: -.2em; bottom: -.15em; width: calc(100% + .4em); height: .7em;
-      overflow: visible; pointer-events: none; animation: try-fade 4.5s ease-in-out infinite;
+    /* ===== invite guide: one looping hand-drawn composition over the board
+       that walks the eye CONFIG var -> Generated .env -> the option checkbox.
+       Anchor boxes are measured in JS (layout_guide); each segment animates on
+       a shared 7s cycle so the tour reads in order, then repeats. ===== */
+    .guide {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      overflow: visible; pointer-events: none; z-index: 4;
     }
-    .try-line path {
-      fill: none; stroke: #e5484d; stroke-width: 2.6; stroke-linecap: round;
-      stroke-dasharray: 200; stroke-dashoffset: 200;
-      animation: try-line-draw 4.5s ease-in-out infinite;
+    .guide path {
+      fill: none; stroke-linecap: round; stroke-linejoin: round;
+      stroke-dasharray: 100; stroke-dashoffset: 100; opacity: 0;
     }
-    @keyframes try-line-draw { 0% { stroke-dashoffset: 200; } 38% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: 0; } }
+    .g-ycircle { stroke: #ffcf33; stroke-width: 2.4; animation: g-seg1 7s ease-in-out infinite; }
+    .g-yarrow  { stroke: #ffcf33; stroke-width: 2.2; animation: g-seg2 7s ease-in-out infinite; }
+    .g-redline { stroke: #e5484d; stroke-width: 2.8; animation: g-seg3 7s ease-in-out infinite; }
+    .g-garrow  { stroke: #46c97a; stroke-width: 2.4; animation: g-seg4 7s ease-in-out infinite; }
+    .g-gcircle { stroke: #57f08a; stroke-width: 3; animation: g-seg5 7s ease-in-out infinite; }
+
+    /* each segment: hidden, draw within its staggered window, hold, fade before
+       the cycle restarts — so the marks appear one after another, in order. */
+    @keyframes g-seg1 { 0%{opacity:0;stroke-dashoffset:100} 1%{opacity:1} 12%{stroke-dashoffset:0} 88%{opacity:1;stroke-dashoffset:0} 96%,100%{opacity:0;stroke-dashoffset:0} }
+    @keyframes g-seg2 { 0%,13%{opacity:0;stroke-dashoffset:100} 15%{opacity:1} 26%{stroke-dashoffset:0} 88%{opacity:1;stroke-dashoffset:0} 94%,100%{opacity:0;stroke-dashoffset:0} }
+    @keyframes g-seg3 { 0%,27%{opacity:0;stroke-dashoffset:100} 29%{opacity:1} 42%{stroke-dashoffset:0} 88%{opacity:1;stroke-dashoffset:0} 94%,100%{opacity:0;stroke-dashoffset:0} }
+    @keyframes g-seg4 { 0%,44%{opacity:0;stroke-dashoffset:100} 46%{opacity:1} 58%{stroke-dashoffset:0} 88%{opacity:1;stroke-dashoffset:0} 94%,100%{opacity:0;stroke-dashoffset:0} }
+    @keyframes g-seg5 { 0%,58%{opacity:0;stroke-dashoffset:100} 60%{opacity:1} 76%{stroke-dashoffset:0} 90%{opacity:1;stroke-dashoffset:0} 98%,100%{opacity:0;stroke-dashoffset:0} }
 
     /* one-time rainbow circle drawn once around the line/content that appears
        after the invite is accepted — in the Workflow step and the fixed .env. */
@@ -217,8 +198,7 @@
     @keyframes rb-fade { to { opacity: 0; } }
 
     @media (prefers-reduced-motion: reduce) {
-      .try-wrap, .try-wrap path,
-      .try-line, .try-line path,
+      .guide path,
       .rb-ring path { animation: none; opacity: 1; stroke-dashoffset: 0; }
     }
 
@@ -261,8 +241,8 @@
     pre.out#yaml, pre.out#output {
       --hl-key: #e06c75; --hl-str: #98c379; --hl-expr: #d19a66; --hl-punct: #abb2bf;
     }
-    :root[data-palette="mono"][data-mode="dark"] pre.out#yaml,
-    :root[data-palette="mono"][data-mode="dark"] pre.out#output {
+    :root[data-mode="dark"] pre.out#yaml,
+    :root[data-mode="dark"] pre.out#output {
       --hl-key: #e45649; --hl-str: #50a14f; --hl-expr: #986801; --hl-punct: #383a42;
     }
     /* green hand-drawn underline marking the deploy command as the goal */
@@ -336,11 +316,22 @@
     pre.out { font-size: 1.05rem; line-height: 1.5; }
     textarea, input[type=text] { font-size: 1rem; }
     .pill { border: 2px solid var(--edge); box-shadow: var(--px-shadow-sm); background: var(--pill-bg); color: var(--pill-ink); }
-    :root[data-palette="nes"] .pill { transform: rotate(-2deg); }
     .btn, .copy { border: 2px solid var(--edge); box-shadow: var(--px-shadow-sm); }
     .btn:active, .copy:active { transform: translate(3px, 3px); box-shadow: none; }
     dialog { border: 2px solid var(--edge); box-shadow: var(--px-shadow); }
     table.spec th, table.spec td { border: 2px solid var(--edge); }
+
+    /* Documentation is prose, not chrome: inside this section swap the pixel
+       body font for a legible sans (and a real mono for code / spec cells) at a
+       comfortable reading size. Section headings keep their 8-bit character;
+       colors are untouched. */
+    #docs p, #docs li {
+      font-family: var(--sans); font-size: .92rem; line-height: 1.65; letter-spacing: .01em;
+    }
+    #docs table.spec th, #docs table.spec td {
+      font-family: var(--sans); font-size: .9rem; line-height: 1.55;
+    }
+    #docs code, #docs table.spec td code { font-family: var(--mono); font-size: .82em; letter-spacing: 0; }
 
     /* palette accent on the active controls */
     .btn-primary { background: var(--accent); color: var(--on-accent); border-color: var(--edge); }
@@ -367,15 +358,12 @@
     }
   </style>
   <script>
-    /* Set the theme before first paint to avoid a flash; the module below wires
-       the switch. Default palette NES (the skill reference); mode follows OS. */
+    /* Set the mode before first paint to avoid a flash; the module below wires
+       the toggle. Single monochrome palette; mode follows OS unless persisted. */
     (function () {
       try {
-        var r = document.documentElement;
-        var pal = localStorage.getItem("genv_palette");
-        if (pal !== "nes" && pal !== "mono") pal = "nes"; // mono-green was removed
-        r.setAttribute("data-palette", pal);
-        r.setAttribute("data-mode", localStorage.getItem("genv_mode") ||
+        document.documentElement.setAttribute("data-mode",
+          localStorage.getItem("genv_mode") ||
           (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"));
       } catch (e) { /* private mode */ }
     })();
@@ -385,14 +373,12 @@
 <div class="wrap">
 
   <nav class="theme-bar" id="theme_bar" aria-label="theme switch">
-    <button type="button" class="th-pal" data-set-palette="nes" aria-pressed="false" title="NES = Nintendo Entertainment System — the 8-bit console whose pixel chrome this theme imitates">NES</button>
-    <button type="button" class="th-pal" data-set-palette="mono" aria-pressed="false">Mono</button>
     <button type="button" class="th-mode" id="mode_toggle" title="toggle light / dark">dark</button>
   </nav>
 
   <header class="hero">
     <span class="pill">GitHub Action</span>
-    <h1>genv</h1>
+    <h1>genv <a class="doc-link" href="#docs">docs ↓</a></h1>
     <div class="tag"><em>gen env</em></div>
     <p class="lead">
       Build a <code>.env</code> from your repository <strong>vars</strong> and
@@ -408,7 +394,8 @@
        from_action mapping mirrors parity/adapter.ts.
        =================================================================== -->
   <section id="playground" aria-labelledby="play-h">
-    <h2 id="play-h">Suppose this is your GutHib repo's settings</h2>
+    <details class="play-section" id="play_details" open>
+    <summary><h2 id="play-h">Suppose this is your GutHib repo's settings</h2></summary>
     <p class="hint" style="margin:-.6rem 0 1.2rem">
       Set up repository <code>vars</code> and <code>secrets</code> like you would
       on GitHub, tweak the options, and watch the workflow step and resulting
@@ -462,7 +449,10 @@
           <pre class="out" id="output">(loading engine…)</pre>
         </div>
       </div>
+      <!-- looping guided composition (CONFIG -> .env -> checkbox); JS-positioned -->
+      <svg class="guide" id="guide" aria-hidden="true"></svg>
     </div>
+    </details>
   </section>
 
   <!-- shared add/edit dialog for vars and secrets -->
@@ -563,10 +553,10 @@
     { name: "API_KEY", value: "s3cr3t" },
   ];
 
-  // Guided invite lifecycle: the green circle + red line blink until the user
-  // turns content_from_vars on; that one toggle then draws a one-time rainbow
-  // ring around the yaml line and the inlined .env content that appear.
-  let invite_active = true;   // green circle + red line are showing
+  // Guided invite lifecycle: the looping guide composition runs until the user
+  // either turns content_from_vars on (which completes it with the one-time
+  // rainbow rings) or edits/removes the CONFIG content var (which just ends it).
+  let invite_active = true;   // the looping guide composition is running
   let rainbow_shown = false;  // the one-time rainbow has already played
   let mark_rainbow = false;   // this render should wrap + draw the rainbow
 
@@ -639,9 +629,9 @@
     return block.split("\n").length;
   }
 
-  // The content var's name (a multi-line value), used while the invite is live
-  // to mark its line in the .env with the red line. Off (the invite default),
-  // its value lands as a single escaped string — exactly what the tip fixes.
+  // The content var's name (a multi-line value). While the invite is live its
+  // value is the guide's .env anchor — off (the invite default) it lands as a
+  // single escaped string, exactly what the tip fixes.
   function invite_content_key() {
     if (!invite_active) return null;
     const cvar = vars.find((v) => v.value.includes("\n"));
@@ -649,16 +639,16 @@
   }
 
   // Render the .env. `lead` wraps the inlined content block for the one-time
-  // rainbow ring; `redKey` underlines that var's value with the invite red line.
+  // rainbow ring; `anchorKey` tags that var's value so the guide can target it.
   function hl_dotenv(text, opts) {
     opts = opts || {};
-    const redKey = opts.redKey || null;
+    const anchorKey = opts.anchorKey || null;
     const lines = text.split("\n").map((line) => {
       const m = !/^\s*#/.test(line) && line.match(/^([A-Za-z_][A-Za-z0-9_]*)(=)([\s\S]*)$/);
-      if (m && redKey && m[1] === redKey) {
+      if (m && anchorKey && m[1] === anchorKey) {
         const v = m[3];
         const vh = /^(".*"|'.*')$/.test(v) ? HL.str(v) : esc(v);
-        return HL.key(m[1]) + HL.punct(m[2]) + `<span class="try-host">${vh}${RED_LINE}</span>`;
+        return HL.key(m[1]) + HL.punct(m[2]) + `<span id="env_content_anchor">${vh}</span>`;
       }
       return hl_dotenv_line(line);
     });
@@ -732,13 +722,15 @@
   function render_list(kind) {
     const rows = kind === "vars" ? vars : secrets;
     const masked = kind === "secrets";
+    const akey = kind === "vars" ? invite_content_key() : null; // CONFIG row = guide anchor
     $(kind + "_list").innerHTML = rows.map((r, idx) => {
       // show real var values verbatim, including multi-line content, so the
       // "value is a whole file fragment" intent is obvious. secrets stay masked.
       const multi = !masked && r.value.includes("\n");
       const val = masked ? "••••••••" : esc(r.value);
       const cls = multi ? "kv-val kv-multiline" : "kv-val";
-      return `<li class="kv-row">` +
+      const anchor = akey && r.name === akey ? ` id="var_content_anchor"` : "";
+      return `<li class="kv-row"${anchor}>` +
         `<div class="kv-main"><span class="kv-name">${esc(r.name)}</span><span class="${cls}">${val}</span></div>` +
         `<div class="kv-actions"><button type="button" data-edit="${kind}:${idx}">Edit</button>` +
         `<button type="button" data-del="${kind}:${idx}">Remove</button></div></li>`;
@@ -751,7 +743,7 @@
     catch (e) { $("error").textContent = e.message; return; }
     $("error").textContent = "";
     const lead = mark_rainbow ? content_block_lines(env || "") : 0;
-    $("output").innerHTML = hl_dotenv(env || "(empty)", { lead, redKey: invite_content_key() });
+    $("output").innerHTML = hl_dotenv(env || "(empty)", { lead, anchorKey: invite_content_key() });
     $("yaml").innerHTML = build_yaml();
     // reflect each option's on/off effect: disable inert inputs, mark active
     for (const o of OPTIONS) {
@@ -768,20 +760,83 @@
       rainbow_shown = true;
       play_rainbow();
     }
+    layout_guide(); // re-anchor (or clear) the looping invite composition
   }
 
-  // --- build the options accordion -------------------------------------------
-  // A hand-drawn circle invites the first toggle of the content_from_vars
-  // option; it is removed as soon as the user acts on that checkbox.
-  const TRY_CIRCLE =
-    `<span class="try-wrap" id="try_circle" aria-hidden="true">` +
-    `<svg viewBox="0 0 90 60"><path d="M45 8 C22 4 8 18 11 32 C14 47 40 54 60 50 C80 46 84 30 76 18 C70 9 54 6 40 10"/></svg>` +
-    `<span class="try-label">try!</span></span>`;
+  // --- invite guide: one looping hand-drawn composition over the board -------
+  // It walks the eye CONFIG var (yellow circle) -> a yellow arrow -> the .env
+  // value (red line, drawn right-to-left) -> a dashed arrow -> the option
+  // checkbox (green circle). Positions come from measured anchor boxes; the
+  // sequencing + looping live in CSS (g-seg* keyframes on a shared 7s cycle).
 
-  // Red companion mark for the invited content value (red via CSS .try-line).
-  const RED_LINE =
-    `<svg class="try-line" viewBox="0 0 120 14" preserveAspectRatio="none" aria-hidden="true">` +
-    `<path d="M3 9 C28 3 46 12 64 7 C82 2 100 11 117 6"/></svg>`;
+  const r1 = (n) => Math.round(n * 10) / 10; // tidy 1-decimal coords
+
+  // A bowed cubic between two points, for hand-drawn arrows.
+  function guide_arrow(sx, sy, ex, ey, bow) {
+    const dx = ex - sx, dy = ey - sy;
+    const len = Math.hypot(dx, dy) || 1;
+    const nx = -dy / len, ny = dx / len; // unit perpendicular
+    const c1x = sx + dx * 0.25 + nx * bow, c1y = sy + dy * 0.25 + ny * bow;
+    const c2x = sx + dx * 0.75 + nx * bow, c2y = sy + dy * 0.75 + ny * bow;
+    return `M ${r1(sx)} ${r1(sy)} C ${r1(c1x)} ${r1(c1y)} ${r1(c2x)} ${r1(c2y)} ${r1(ex)} ${r1(ey)}`;
+  }
+
+  // Hand-drawn rounded-square loop hugging a box: square-ish so it frames the
+  // content instead of cutting across it, with slightly bowed edges and an
+  // overshoot at the close for a sketched, marker-pen feel.
+  function sketch_rect(bx, by, bw, bh, pad, rad) {
+    const x0 = bx - pad, y0 = by - pad, x1 = bx + bw + pad, y1 = by + bh + pad;
+    const r = Math.max(4, Math.min(rad, (x1 - x0) / 2 - 1, (y1 - y0) / 2 - 1));
+    const mx = (x0 + x1) / 2, my = (y0 + y1) / 2, b = 1.8; // edge bow outward
+    const over = Math.min(16, (x1 - x0) / 3);
+    return [
+      `M ${r1(x0 + r)} ${r1(y0)}`,
+      `Q ${r1(mx)} ${r1(y0 - b)} ${r1(x1 - r)} ${r1(y0)}`,   // top
+      `Q ${r1(x1)} ${r1(y0)} ${r1(x1)} ${r1(y0 + r)}`,       // top-right
+      `Q ${r1(x1 + b)} ${r1(my)} ${r1(x1)} ${r1(y1 - r)}`,   // right
+      `Q ${r1(x1)} ${r1(y1)} ${r1(x1 - r)} ${r1(y1)}`,       // bottom-right
+      `Q ${r1(mx)} ${r1(y1 + b)} ${r1(x0 + r)} ${r1(y1)}`,   // bottom
+      `Q ${r1(x0)} ${r1(y1)} ${r1(x0)} ${r1(y1 - r)}`,       // bottom-left
+      `Q ${r1(x0 - b)} ${r1(my)} ${r1(x0)} ${r1(y0 + r)}`,   // left
+      `Q ${r1(x0)} ${r1(y0)} ${r1(x0 + r)} ${r1(y0)}`,       // top-left
+      `L ${r1(x0 + r + over)} ${r1(y0)}`,                    // overshoot the close
+    ].join(" ");
+  }
+
+  // Build the composition SVG from the three anchor boxes (board coordinates).
+  function build_guide_svg(a, b, c) {
+    const defs = `<defs>` +
+      `<marker id="ah-y" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto">` +
+      `<path d="M0 0 L6.5 3 L0 6" fill="none" stroke="#ffcf33" stroke-width="1.4"/></marker>` +
+      `<marker id="ah-g" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto">` +
+      `<path d="M0 0 L6.5 3 L0 6" fill="none" stroke="#46c97a" stroke-width="1.4"/></marker>` +
+      `</defs>`;
+    const yCircle = `<path class="g-ycircle" pathLength="100" d="${sketch_rect(a.x, a.y, a.w, a.h, 7, 13)}"/>`;
+    const yArrow = `<path class="g-yarrow" pathLength="100" marker-end="url(#ah-y)" d="${guide_arrow(a.x + a.w + 4, a.cy, b.x - 12, b.cy, -36)}"/>`;
+    // red line: start at the right end so the stroke draws right-to-left
+    const red = `<path class="g-redline" pathLength="100" d="M ${r1(b.x + b.w)} ${r1(b.y + b.h + 5)} Q ${r1(b.cx)} ${r1(b.y + b.h + 11)} ${r1(b.x)} ${r1(b.y + b.h + 5)}"/>`;
+    const gArrow = `<path class="g-garrow" pathLength="100" marker-end="url(#ah-g)" d="${guide_arrow(b.cx, b.y + b.h + 9, c.x + c.w + 11, c.cy, 44)}"/>`;
+    const gCircle = `<path class="g-gcircle" pathLength="100" d="${sketch_rect(c.x, c.y, c.w, c.h, 9, 9)}"/>`;
+    return defs + yCircle + yArrow + red + gArrow + gCircle;
+  }
+
+  // Measure anchors relative to the board and (re)draw the guide, or clear it
+  // when the invite is over / any anchor is missing (e.g. playground collapsed).
+  function layout_guide() {
+    const svg = $("guide");
+    if (!svg) return;
+    const board = svg.parentElement;
+    const A = $("var_content_anchor"), B = $("env_content_anchor"), C = $("chk_content_from_vars_include_pattern");
+    if (!invite_active || !A || !B || !C || !board.clientWidth) { svg.innerHTML = ""; return; }
+    const br = board.getBoundingClientRect();
+    const rel = (el) => {
+      const r = el.getBoundingClientRect();
+      const x = r.left - br.left, y = r.top - br.top;
+      return { x, y, w: r.width, h: r.height, cx: x + r.width / 2, cy: y + r.height / 2 };
+    };
+    svg.setAttribute("viewBox", `0 0 ${Math.round(br.width)} ${Math.round(br.height)}`);
+    svg.innerHTML = build_guide_svg(rel(A), rel(B), rel(C));
+  }
 
   // Self-contained rainbow ring; the gradient id is unique per instance so two
   // rings can coexist. preserveAspectRatio="none" stretches it to hug the box.
@@ -813,19 +868,11 @@
     const field = o.multiline
       ? `<textarea id="opt_${o.key}" spellcheck="false" rows="3"></textarea>`
       : `<input id="opt_${o.key}" type="text" spellcheck="false" />`;
-    const circle = o.invite ? TRY_CIRCLE : "";
     return `<details class="opt"${o.open ? " open" : ""}><summary>` +
-      `<span class="chk-wrap"><input type="checkbox" class="opt-toggle" id="chk_${o.key}" title="toggle this option's effect" />${circle}</span>` +
+      `<span class="chk-wrap"><input type="checkbox" class="opt-toggle" id="chk_${o.key}" title="toggle this option's effect" /></span>` +
       `<code>${o.key}</code> <span class="hint">${o.hint}</span></summary>` +
       `<div class="opt-body">${field}</div></details>`;
   }).join("");
-
-  function dismiss_try() {
-    if (!invite_active) return;
-    invite_active = false; // the caller re-renders, dropping the .env red line
-    const c = $("try_circle");
-    if (c) c.remove();
-  }
 
   for (const o of OPTIONS) {
     const inp = $("opt_" + o.key);
@@ -837,8 +884,9 @@
     chk.addEventListener("click", (e) => e.stopPropagation()); // don't toggle <details>
     chk.addEventListener("change", () => {
       if (chk.checked) inp.closest(".opt").open = true; // reveal value when enabling
-      if (o.invite && chk.checked && !rainbow_shown) mark_rainbow = true; // accept the tip -> rainbow
-      if (o.invite) dismiss_try();
+      // accepting the tip ends the invite and completes it with the rainbow
+      if (o.invite && chk.checked && !rainbow_shown) mark_rainbow = true;
+      if (o.invite) invite_active = false;
       render();
     });
   }
@@ -872,8 +920,12 @@
     const rows = editing.kind === "vars" ? vars : secrets;
     const dup = rows.findIndex((r) => r.name === name);
     if (dup !== -1 && dup !== editing.index) { $("dlg_err").textContent = "Name already exists."; return; }
+    // editing the content var (CONFIG) ends the invite — without the rainbow.
+    const touchedContent = editing.kind === "vars" && editing.index !== null &&
+      rows[editing.index] && rows[editing.index].value.includes("\n");
     if (editing.index === null) rows.push({ name, value });
     else rows[editing.index] = { name, value };
+    if (invite_active && touchedContent) invite_active = false;
     dlg.close();
     render_list(editing.kind);
     render();
@@ -889,7 +941,9 @@
     const del = e.target.closest("[data-del]");
     if (del) {
       const [k, i] = del.dataset.del.split(":");
-      (k === "vars" ? vars : secrets).splice(+i, 1);
+      const arr = k === "vars" ? vars : secrets;
+      if (invite_active && k === "vars" && arr[+i] && arr[+i].value.includes("\n")) invite_active = false;
+      arr.splice(+i, 1);
       render_list(k); render(); return;
     }
     const copy = e.target.closest("[data-copy]");
@@ -901,20 +955,10 @@
     }
   });
 
-  // --- theme switch: palette x light/dark, persisted; reflects active state --
+  // --- light/dark toggle, persisted; the button shows the active mode ---------
   const html_el = document.documentElement;
   function sync_theme() {
-    const pal = html_el.getAttribute("data-palette");
-    for (const b of document.querySelectorAll(".th-pal"))
-      b.setAttribute("aria-pressed", String(b.dataset.setPalette === pal));
     $("mode_toggle").textContent = html_el.getAttribute("data-mode");
-  }
-  for (const b of document.querySelectorAll(".th-pal")) {
-    b.addEventListener("click", () => {
-      html_el.setAttribute("data-palette", b.dataset.setPalette);
-      try { localStorage.setItem("genv_palette", b.dataset.setPalette); } catch { /* private mode */ }
-      sync_theme();
-    });
   }
   $("mode_toggle").addEventListener("click", () => {
     const next = html_el.getAttribute("data-mode") === "dark" ? "light" : "dark";
@@ -923,6 +967,12 @@
     sync_theme();
   });
   sync_theme();
+
+  // --- keep the guide composition anchored as the layout shifts --------------
+  addEventListener("resize", layout_guide);
+  addEventListener("load", layout_guide); // web fonts can resize anchors late
+  $("play_details").addEventListener("toggle", layout_guide); // collapse hides it
+  if (window.ResizeObserver) new ResizeObserver(layout_guide).observe($("config"));
 
   // --- init ------------------------------------------------------------------
   render_list("vars");
