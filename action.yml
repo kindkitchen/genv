@@ -1,6 +1,9 @@
 name: Generate dotenv
 description: Utilize github vars and secrets to create dotenv file from them following instructions
 author: kindkitchen
+branding:
+  icon: file-text
+  color: green
 inputs:
   vars_obj:
     description: "In most cases may be toJson(vars). Or any other key-value json string"

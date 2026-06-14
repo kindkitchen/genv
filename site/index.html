@@ -66,6 +66,9 @@
     /* jump-to-docs link beside the title: inline with the heading but spaced
        off it, in the legible sans so it reads at a glance. */
     .doc-link { font-family: var(--sans); font-size: .9rem; font-weight: 600; vertical-align: middle; margin-left: 1.1rem; white-space: nowrap; }
+    /* the title itself links to the repo; keep the heading look, underline on hover */
+    .title-link { color: inherit; text-decoration: none; }
+    .title-link:hover { text-decoration: underline; text-decoration-color: currentColor; }
     .pill {
       display: inline-block; padding: .25rem .6rem; font-size: .72rem;
       letter-spacing: .04em; text-transform: uppercase; color: var(--muted);
@@ -359,9 +362,18 @@
     }
     .theme-bar button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
     .theme-bar button:active { transform: translate(2px, 2px); }
+    /* github icon link sits in the same bar, styled like a pixel button */
+    .theme-bar .gh-link {
+      display: inline-flex; align-items: center; justify-content: center; line-height: 0;
+      background: var(--field); color: var(--ink); text-decoration: none;
+      border: 2px solid var(--edge); padding: .2rem .35rem;
+    }
+    .theme-bar .gh-link:hover { background: var(--accent); color: var(--on-accent); }
+    .theme-bar .gh-link:active { transform: translate(2px, 2px); }
     @media (max-width: 40rem) {
       .theme-bar { top: .4rem; right: .4rem; gap: .2rem; padding: .2rem; }
       .theme-bar button { font-size: .85rem; padding: .15rem .3rem; }
+      .theme-bar .gh-link svg { width: 15px; height: 15px; }
     }
   </style>
   <script>
@@ -379,13 +391,16 @@
 <body>
 <div class="wrap">
 
-  <nav class="theme-bar" id="theme_bar" aria-label="theme switch">
+  <nav class="theme-bar" id="theme_bar" aria-label="site controls">
+    <a class="gh-link" href="https://github.com/kindkitchen/genv" target="_blank" rel="noopener" title="genv on GitHub" aria-label="genv on GitHub">
+      <svg viewBox="0 0 16 16" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.02-1.49-2.22.48-2.69-1.07-2.69-1.07-.36-.92-.89-1.17-.89-1.17-.73-.5.05-.49.05-.49.81.06 1.23.83 1.23.83.72 1.23 1.88.87 2.34.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+    </a>
     <button type="button" class="th-mode" id="mode_toggle" title="toggle light / dark">dark</button>
   </nav>
 
   <header class="hero">
     <span class="pill">GitHub Action</span>
-    <h1>genv <a class="doc-link" href="#docs">docs ↓</a></h1>
+    <h1><a class="title-link" href="https://github.com/kindkitchen/genv">genv</a> <a class="doc-link" href="#docs">docs ↓</a></h1>
     <div class="tag"><em>gen env</em></div>
     <p class="lead">
       Build a <code>.env</code> from your repository <strong>vars</strong> and
@@ -794,52 +809,65 @@
   // the hand-drawn wobble doesn't re-shuffle on every re-render.
   const jit = (seed, i) => { const s = Math.sin(seed + i * 12.9898) * 43758.5453; return (s - Math.floor(s)) * 2 - 1; };
 
-  // A bowed, slightly wavering arrow with a hand-drawn (two-stroke) head baked
-  // into the same path so it draws last, at the tip.
+  // A wobbly, shaky-hand arrow: drawn through two jittered mid anchors, with a
+  // crippled (lopsided, baked-in) two-stroke head so it draws last, at the tip.
   function hand_arrow(sx, sy, ex, ey, bow) {
     const dx = ex - sx, dy = ey - sy;
     const len = Math.hypot(dx, dy) || 1;
     const nx = -dy / len, ny = dx / len; // unit perpendicular
-    const sd = sx + sy;
-    const c1x = sx + dx * 0.28 + nx * (bow + jit(sd, 1) * 2.4), c1y = sy + dy * 0.28 + ny * (bow + jit(sd, 1) * 2.4);
-    const c2x = sx + dx * 0.72 + nx * (bow * 0.5 + jit(sd, 2) * 2.4), c2y = sy + dy * 0.72 + ny * (bow * 0.5 + jit(sd, 2) * 2.4);
-    let d = `M ${r1(sx)} ${r1(sy)} C ${r1(c1x)} ${r1(c1y)} ${r1(c2x)} ${r1(c2y)} ${r1(ex)} ${r1(ey)}`;
-    const ang = Math.atan2(ey - c2y, ex - c2x), L = 11, sp = 0.5; // ~29deg wings
-    const w1x = ex - L * Math.cos(ang - sp), w1y = ey - L * Math.sin(ang - sp);
-    const w2x = ex - L * Math.cos(ang + sp), w2y = ey - L * Math.sin(ang + sp);
+    const sd = sx * 0.6 + sy * 0.4;
+    const at = (t, i) => {
+      const off = Math.sin(Math.PI * t) * bow + jit(sd, i) * 5; // bow + shake
+      return [sx + dx * t + nx * off, sy + dy * t + ny * off];
+    };
+    const p1 = at(0.34, 1), p2 = at(0.68, 2), m = [(p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2];
+    let d = `M ${r1(sx)} ${r1(sy)} Q ${r1(p1[0])} ${r1(p1[1])} ${r1(m[0])} ${r1(m[1])}` +
+      ` Q ${r1(p2[0])} ${r1(p2[1])} ${r1(ex)} ${r1(ey)}`;
+    const ang = Math.atan2(ey - p2[1], ex - p2[0]);              // approach tangent
+    const L1 = 10 + jit(sd, 7) * 4, L2 = 10 + jit(sd, 8) * 4;    // uneven wings
+    const s1 = 0.52 + jit(sd, 9) * 0.22, s2 = 0.52 + jit(sd, 10) * 0.22;
+    const w1x = ex - L1 * Math.cos(ang - s1), w1y = ey - L1 * Math.sin(ang - s1);
+    const w2x = ex - L2 * Math.cos(ang + s2), w2y = ey - L2 * Math.sin(ang + s2);
     return d + ` M ${r1(w1x)} ${r1(w1y)} L ${r1(ex)} ${r1(ey)} L ${r1(w2x)} ${r1(w2y)}`;
   }
 
-  // Hand-drawn right-to-left underline (starts at the right) with a little wave.
+  // Shaky right-to-left underline (starts at the right), wandering off the line.
   function hand_underline(x0, x1, y) {
-    return `M ${r1(x1)} ${r1(y)} C ${r1(x0 + (x1 - x0) * 0.7)} ${r1(y + 5)} ` +
-      `${r1(x0 + (x1 - x0) * 0.33)} ${r1(y - 2)} ${r1(x0)} ${r1(y + 3)}`;
+    const w = x1 - x0, sd = x0 + y;
+    const P = (t, i) => [x0 + w * t, y + jit(sd, i) * 4 + Math.sin(t * 6.3) * 2];
+    const p = [P(1, 1), P(0.66, 2), P(0.33, 3), P(0, 4)]; // right -> left
+    const mid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    const m1 = mid(p[1], p[2]);
+    return `M ${r1(p[0][0])} ${r1(p[0][1])} Q ${r1(p[1][0])} ${r1(p[1][1])} ${r1(m1[0])} ${r1(m1[1])}` +
+      ` Q ${r1(p[2][0])} ${r1(p[2][1])} ${r1(p[3][0])} ${r1(p[3][1])}`;
   }
 
-  // Hand-drawn rounded-square loop hugging a box: square-ish so it frames the
-  // content instead of cutting across it, with per-edge bow + per-corner radius
-  // jitter and an overshoot at the close for a sketched, marker-pen feel.
-  function sketch_rect(bx, by, bw, bh, pad, rad) {
-    const x0 = bx - pad, y0 = by - pad, x1 = bx + bw + pad, y1 = by + bh + pad;
-    const baseR = Math.max(4, Math.min(rad, (x1 - x0) / 2 - 1, (y1 - y0) / 2 - 1));
-    const mx = (x0 + x1) / 2, my = (y0 + y1) / 2, sd = x0 + y0 * 0.7;
-    const bow = (i) => 2.4 + jit(sd, i) * 1.6;                 // outward edge bow
-    const rc = (i) => baseR * (0.86 + Math.abs(jit(sd, i)) * 0.22); // corner radius
-    const bT = bow(1), bR = bow(2), bB = bow(3), bL = bow(4);
-    const rTL = rc(5), rTR = rc(6), rBR = rc(7), rBL = rc(8);
-    const over = Math.min(18, (x1 - x0) / 3);
-    return [
-      `M ${r1(x0 + rTL)} ${r1(y0)}`,
-      `Q ${r1(mx)} ${r1(y0 - bT)} ${r1(x1 - rTR)} ${r1(y0)}`,    // top
-      `Q ${r1(x1)} ${r1(y0)} ${r1(x1)} ${r1(y0 + rTR)}`,        // top-right
-      `Q ${r1(x1 + bR)} ${r1(my)} ${r1(x1)} ${r1(y1 - rBR)}`,   // right
-      `Q ${r1(x1)} ${r1(y1)} ${r1(x1 - rBR)} ${r1(y1)}`,        // bottom-right
-      `Q ${r1(mx)} ${r1(y1 + bB)} ${r1(x0 + rBL)} ${r1(y1)}`,   // bottom
-      `Q ${r1(x0)} ${r1(y1)} ${r1(x0)} ${r1(y1 - rBL)}`,        // bottom-left
-      `Q ${r1(x0 - bL)} ${r1(my)} ${r1(x0)} ${r1(y0 + rTL)}`,   // left
-      `Q ${r1(x0)} ${r1(y0)} ${r1(x0 + rTL)} ${r1(y0)}`,        // top-left
-      `L ${r1(x0 + rTL + over)} ${r1(y0)}`,                     // overshoot the close
-    ].join(" ");
+  // A wonky, hand-drawn squircle loop through jittered points around a box —
+  // square-ish (so it frames content, not cuts it) but lopsided and crippled,
+  // smoothed via quadratics with a small overshoot at the close.
+  function wobbly_loop(cx, cy, rx, ry, sd) {
+    const N = 11, squ = 1.7, pts = [];
+    for (let i = 0; i < N; i++) {
+      const ang = (i / N) * Math.PI * 2 - Math.PI / 2;
+      let px = Math.cos(ang), py = Math.sin(ang);
+      px = Math.sign(px) * Math.pow(Math.abs(px), 1 / squ); // squarify corners
+      py = Math.sign(py) * Math.pow(Math.abs(py), 1 / squ);
+      const jr = 1 + jit(sd, i) * 0.16;                     // radius wobble
+      pts.push([cx + px * rx * jr + jit(sd, i + 31) * 3.2, cy + py * ry * jr + jit(sd, i + 61) * 3.2]);
+    }
+    const mid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    const m0 = mid(pts[N - 1], pts[0]);
+    let d = `M ${r1(m0[0])} ${r1(m0[1])}`;
+    for (let i = 0; i < N; i++) {
+      const cur = pts[i], m = mid(cur, pts[(i + 1) % N]);
+      d += ` Q ${r1(cur[0])} ${r1(cur[1])} ${r1(m[0])} ${r1(m[1])}`;
+    }
+    const o = mid(pts[0], pts[1]); // overshoot past the start
+    return d + ` Q ${r1(pts[0][0])} ${r1(pts[0][1])} ${r1(o[0])} ${r1(o[1])}`;
+  }
+
+  function sketch_rect(bx, by, bw, bh, pad) {
+    return wobbly_loop(bx + bw / 2, by + bh / 2, bw / 2 + pad, bh / 2 + pad, bx * 0.3 + by * 0.7 + bw);
   }
 
   // Build the composition SVG from the three anchor boxes (board coordinates).
