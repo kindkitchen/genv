@@ -113,16 +113,42 @@
 
     .opt { border: 1px solid var(--line); border-radius: 8px; margin-top: .5rem; }
     .opt > summary {
-      cursor: pointer; padding: .55rem .75rem; list-style: none;
-      display: flex; align-items: baseline; gap: .5rem; flex-wrap: wrap;
+      cursor: pointer; padding: .55rem .75rem; list-style: none; position: relative;
+      display: flex; align-items: center; gap: .5rem; flex-wrap: wrap;
     }
     .opt > summary::-webkit-details-marker { display: none; }
     .opt > summary::before { content: "+"; color: var(--muted); font-family: var(--mono); }
     .opt[open] > summary::before { content: "\2212"; }
     .opt > summary code { background: transparent; padding: 0; font-weight: 600; }
-    .opt[data-changed] > summary code { color: var(--ink); }
-    .opt[data-changed] > summary::after { content: "modified"; font-size: .72rem; color: var(--muted); border: 1px solid var(--line-strong); border-radius: 999px; padding: 0 .4rem; }
+    .chk-wrap { position: relative; display: inline-flex; align-items: center; flex: none; }
+    .opt-toggle { width: 1rem; height: 1rem; margin: 0; cursor: pointer; accent-color: var(--ink); }
+    .opt[data-active] > summary code { color: var(--ink); }
+    .opt[data-active] > summary::after { content: "on"; font-size: .72rem; color: var(--muted); border: 1px solid var(--line-strong); border-radius: 999px; padding: 0 .4rem; }
     .opt-body { padding: 0 .75rem .7rem; }
+    .opt-body input:disabled, .opt-body textarea:disabled { opacity: .5; cursor: not-allowed; }
+
+    /* one-time hand-drawn invite circle around a checkbox */
+    .try-wrap {
+      position: absolute; left: 50%; top: 50%; width: 3.1rem; height: 2.1rem;
+      transform: translate(-50%, -50%); pointer-events: none;
+      animation: try-fade 4.5s ease-in-out infinite;
+    }
+    .try-wrap svg { width: 100%; height: 100%; overflow: visible; display: block; }
+    .try-wrap path {
+      fill: none; stroke: #ef4d3c; stroke-width: 2.4; stroke-linecap: round;
+      stroke-dasharray: 260; stroke-dashoffset: 260;
+      animation: try-draw 4.5s ease-in-out infinite;
+    }
+    .try-label {
+      position: absolute; left: 100%; top: -.5rem; margin-left: .25rem;
+      color: #ef4d3c; font-size: .78rem; font-weight: 700; font-style: italic;
+      white-space: nowrap; transform: rotate(-7deg);
+    }
+    @keyframes try-fade { 0%, 100% { opacity: 0; } 9% { opacity: 1; } 62% { opacity: 1; } 78% { opacity: 0; } }
+    @keyframes try-draw { 0% { stroke-dashoffset: 260; } 38% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: 0; } }
+    @media (prefers-reduced-motion: reduce) {
+      .try-wrap, .try-wrap path { animation: none; opacity: 1; stroke-dashoffset: 0; }
+    }
 
     /* right: reactive outputs */
     .out-col { display: grid; gap: 1.25rem; align-content: start; }
@@ -368,17 +394,21 @@
   // Action options. Each is collapsed until expanded, then exposes an input
   // pre-filled with the action.yml default. Order mirrors the README example.
   const OPTIONS = [
-    { key: "dotenv_path", hint: "output file path", def: "./.env", multiline: false },
-    { key: "content_from_vars_include_pattern", hint: "regex — inline matching var values as raw content", def: "", multiline: false },
-    { key: "vars_include_pattern", hint: "regex", def: ".*", multiline: false },
-    { key: "vars_exclude_pattern", hint: "regex — overrides include on conflict", def: IMPOSSIBLE, multiline: false },
-    { key: "content_from_secrets_include_pattern", hint: "regex — inline matching secret values as raw content", def: "", multiline: false },
-    { key: "secrets_include_pattern", hint: "regex", def: ".*", multiline: false },
-    { key: "secrets_exclude_pattern", hint: "regex — overrides include on conflict", def: IMPOSSIBLE, multiline: false },
+    { key: "dotenv_path", hint: "output file path", def: "./.env" },
+    { key: "content_from_vars_include_pattern", hint: "regex — inline matching var values as raw content", def: "", init: "CONFIG", on: true, invite: true },
+    { key: "vars_include_pattern", hint: "regex", def: ".*" },
+    { key: "vars_exclude_pattern", hint: "regex — overrides include on conflict", def: IMPOSSIBLE, init: "CONFIG", on: true },
+    { key: "content_from_secrets_include_pattern", hint: "regex — inline matching secret values as raw content", def: "" },
+    { key: "secrets_include_pattern", hint: "regex", def: ".*" },
+    { key: "secrets_exclude_pattern", hint: "regex — overrides include on conflict", def: IMPOSSIBLE },
     { key: "dotenv_content", hint: "literal block, appended last", def: "", multiline: true },
   ];
   const opt_def = Object.fromEntries(OPTIONS.map((o) => [o.key, o.def]));
-  const opt_val = (key) => $("opt_" + key).value;
+  // An option takes effect only when its checkbox is on; otherwise the doc
+  // default applies and the option is omitted from the workflow fragment.
+  const opt_on = (key) => $("chk_" + key).checked;
+  const opt_raw = (key) => $("opt_" + key).value;
+  const opt_val = (key) => (opt_on(key) ? opt_raw(key) : opt_def[key]);
 
   const esc = (s) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
   const to_obj = (rows) => Object.fromEntries(rows.map((r) => [r.name, r.value]));
@@ -428,17 +458,16 @@
 
   function build_yaml() {
     const items = [];
-    if (opt_val("dotenv_path") !== opt_def.dotenv_path) items.push(["dotenv_path", opt_val("dotenv_path")]);
+    if (opt_on("dotenv_path")) items.push(["dotenv_path", opt_raw("dotenv_path")]);
     if (vars.length) items.push(["vars_obj", "${{ toJson(vars) }}"]);
     if (secrets.length) items.push(["secrets_obj", "${{ toJson(secrets) }}"]);
     for (const key of [
       "content_from_vars_include_pattern", "vars_include_pattern", "vars_exclude_pattern",
       "content_from_secrets_include_pattern", "secrets_include_pattern", "secrets_exclude_pattern",
     ]) {
-      const val = opt_val(key);
-      if (val !== opt_def[key]) items.push([key, val]);
+      if (opt_on(key)) items.push([key, opt_raw(key)]);
     }
-    const dc = opt_val("dotenv_content");
+    const dc = opt_on("dotenv_content") ? opt_raw("dotenv_content") : "";
 
     const lines = [HL.punct("- ") + HL.key("uses") + HL.punct(":") + " " + HL.str("kindkitchen/genv@" + VERSION)];
     if (items.length || dc) {
@@ -472,26 +501,72 @@
     $("error").textContent = "";
     $("output").innerHTML = hl_dotenv(env || "(empty)");
     $("yaml").innerHTML = build_yaml();
-    // flag options that differ from their default
+    // reflect each option's on/off effect: disable inert inputs, mark active
     for (const o of OPTIONS) {
-      const det = $("opt_" + o.key).closest(".opt");
-      if (opt_val(o.key) !== o.def) det.setAttribute("data-changed", "");
-      else det.removeAttribute("data-changed");
+      const on = opt_on(o.key);
+      const inp = $("opt_" + o.key);
+      inp.disabled = !on;
+      const det = inp.closest(".opt");
+      if (on) det.setAttribute("data-active", "");
+      else det.removeAttribute("data-active");
     }
   }
 
   // --- build the options accordion -------------------------------------------
+  // A one-time hand-drawn circle invites the first toggle; once the user acts
+  // on it, it is dismissed forever (persisted).
+  const TRY_KEY = "genv_try_content_from_vars";
+  let try_done = false;
+  try { try_done = localStorage.getItem(TRY_KEY) === "1"; } catch { /* private mode */ }
+
+  const TRY_CIRCLE =
+    `<span class="try-wrap" id="try_circle" aria-hidden="true">` +
+    `<svg viewBox="0 0 90 60"><path d="M45 8 C22 4 8 18 11 32 C14 47 40 54 60 50 C80 46 84 30 76 18 C70 9 54 6 40 10"/></svg>` +
+    `<span class="try-label">try!</span></span>`;
+
   $("opts").innerHTML = OPTIONS.map((o) => {
     const field = o.multiline
       ? `<textarea id="opt_${o.key}" spellcheck="false" rows="3"></textarea>`
       : `<input id="opt_${o.key}" type="text" spellcheck="false" />`;
-    return `<details class="opt"><summary><code>${o.key}</code> <span class="hint">${o.hint}</span></summary>` +
+    const circle = o.invite && !try_done ? TRY_CIRCLE : "";
+    return `<details class="opt"><summary>` +
+      `<span class="chk-wrap"><input type="checkbox" class="opt-toggle" id="chk_${o.key}" title="toggle this option's effect" />${circle}</span>` +
+      `<code>${o.key}</code> <span class="hint">${o.hint}</span></summary>` +
       `<div class="opt-body">${field}</div></details>`;
   }).join("");
+
+  function dismiss_try() {
+    const c = $("try_circle");
+    if (c) c.remove();
+    try { localStorage.setItem(TRY_KEY, "1"); } catch { /* private mode */ }
+  }
+
+  // Content vars are emitted as raw lines AND would otherwise repeat in the
+  // key=value step — so excluding the same key keeps the .env correct. Mirror
+  // content_from_vars into vars_exclude so the demo never shows a duplicate.
+  function sync_config_exclude() {
+    const on = opt_on("content_from_vars_include_pattern");
+    $("chk_vars_exclude_pattern").checked = on;
+    if (on) $("opt_vars_exclude_pattern").value = opt_raw("content_from_vars_include_pattern");
+  }
+
   for (const o of OPTIONS) {
-    const el = $("opt_" + o.key);
-    el.value = o.def;
-    el.addEventListener("input", render);
+    const inp = $("opt_" + o.key);
+    inp.value = o.init ?? o.def;
+    inp.addEventListener("input", () => {
+      if (o.key === "content_from_vars_include_pattern") sync_config_exclude();
+      render();
+    });
+
+    const chk = $("chk_" + o.key);
+    chk.checked = !!o.on;
+    chk.addEventListener("click", (e) => e.stopPropagation()); // don't toggle <details>
+    chk.addEventListener("change", () => {
+      if (chk.checked) inp.closest(".opt").open = true; // reveal value when enabling
+      if (o.invite) dismiss_try();
+      if (o.key === "content_from_vars_include_pattern") sync_config_exclude();
+      render();
+    });
   }
 
   // --- add/edit dialog for vars & secrets ------------------------------------
