@@ -3,132 +3,189 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="light dark" />
   <title>genv — generate dotenv from GitHub vars and secrets</title>
   <meta name="description" content="genv is a GitHub Action that computes a dotenv file from your repository vars and secrets following a flexible merge strategy. Try it live." />
   <!-- Single static file by design: no build step, no node_modules. The
        playground reuses the published engine (jsr:@kindkitchen/genv) in-browser
-       via esm.sh. Visual direction: minimal retro-terminal — monochrome
-       (grey/white/dark, inverted per theme), system monospace. Focus on
-       content/core idea over heavy styling. -->
+       via esm.sh. Visual direction: minimal and monochrome (dark/grey/white,
+       inverted per theme), system fonts with monospace only for code/env.
+       Styling stays out of the way so the content/core idea reads first. -->
   <style>
     :root {
-      --bg: #5c94fc;          /* NES sky blue */
-      --panel: #fdf6e3;       /* cream */
-      --panel-2: #ffffff;
-      --ink: #21130d;         /* near-black */
-      --muted: #7a6a55;
-      --line: #21130d;        /* black outlines */
-      --accent: #e23b2e;      /* brick red */
-      --accent-2: #2aa84a;    /* pipe green */
-      --gold: #fac000;        /* coin */
-      --screen: #0b1733;      /* CRT navy */
-      --screen-ink: #8ff088;  /* CRT green */
-      --shadow: 6px 6px 0 var(--line);
-      --shadow-sm: 4px 4px 0 var(--line);
-      --font-head: "Press Start 2P", ui-monospace, monospace;
-      --font-body: "VT323", ui-monospace, monospace;
+      color-scheme: light dark;
+      --bg: #ffffff;
+      --panel: #fafafa;
+      --field: #ffffff;
+      --ink: #1a1a1a;
+      --muted: #6b6b6b;
+      --line: #e2e2e2;
+      --line-strong: #c9c9c9;
+      /* output panel: inverted relative to the page */
+      --screen: #1a1a1a;
+      --screen-ink: #f2f2f2;
+      --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      --mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
     }
     @media (prefers-color-scheme: dark) {
       :root {
-        --bg: #0a1024; --panel: #1a1336; --panel-2: #221a44; --ink: #f4ecd8;
-        --muted: #b09be0; --line: #000000; --accent: #ff5a4d; --accent-2: #54d97a;
-        --screen: #05102a;
+        --bg: #161616;
+        --panel: #1e1e1e;
+        --field: #161616;
+        --ink: #ededed;
+        --muted: #9a9a9a;
+        --line: #333333;
+        --line-strong: #444444;
+        --screen: #ededed;
+        --screen-ink: #161616;
       }
     }
     * { box-sizing: border-box; }
     body {
       margin: 0; background: var(--bg); color: var(--ink);
-      font-family: var(--font-body); font-size: 1.25rem; line-height: 1.4;
-      background-image:
-        linear-gradient(rgba(255, 255, 255, .06) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255, 255, 255, .06) 1px, transparent 1px);
-      background-size: 16px 16px;
+      font-family: var(--sans); font-size: 1rem; line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
     }
-    .wrap { max-width: 70rem; margin-inline: auto; padding: 1.5rem 1rem 5rem; }
+    .wrap { max-width: 64rem; margin-inline: auto; padding: 1.5rem 1.25rem 5rem; }
 
-    h1, h2, h3, label, .pill, .copy, table.spec th { font-family: var(--font-head); }
-
-    header.hero { text-align: center; padding: 2.5rem 0 1rem; }
-    header.hero h1 {
-      font-size: clamp(1.8rem, 6vw, 3rem); margin: .4rem 0 0; color: var(--gold);
-      line-height: 1.1;
-      text-shadow: 3px 0 var(--accent), -3px 0 var(--line), 0 3px var(--line),
-        0 -3px var(--line), 5px 5px 0 var(--line);
-    }
-    header.hero .tag { font-family: var(--font-body); color: #fff; font-size: 1.5rem; margin-top: .7rem; }
-    header.hero .lead { max-width: 44rem; margin: 1rem auto 0; color: #fff; }
+    header.hero { padding: 3rem 0 1rem; }
+    header.hero h1 { font-size: clamp(2.2rem, 7vw, 3.2rem); margin: .6rem 0 0; letter-spacing: -.02em; }
+    header.hero .tag { color: var(--muted); font-size: 1.1rem; margin-top: .2rem; }
+    header.hero .lead { max-width: 44rem; margin: 1rem 0 0; color: var(--ink); font-size: 1.1rem; }
     .pill {
-      display: inline-block; padding: .5rem .7rem; font-size: .6rem;
-      background: var(--accent); color: #fff; border: 3px solid var(--line);
-      box-shadow: var(--shadow-sm); transform: rotate(-2deg);
+      display: inline-block; padding: .25rem .6rem; font-size: .72rem;
+      letter-spacing: .04em; text-transform: uppercase; color: var(--muted);
+      border: 1px solid var(--line-strong); border-radius: 999px;
     }
 
-    section { margin-top: 3rem; }
-    h2 { font-size: 1rem; margin: 0 0 1.1rem; color: #fff; text-shadow: 3px 3px 0 var(--line); }
-    .panel h2 { color: var(--ink); text-shadow: 1px 1px 0 rgba(0, 0, 0, .12); }
-    @media (prefers-color-scheme: dark) { .panel h2 { color: var(--gold); text-shadow: 2px 2px 0 var(--line); } }
-    h3 { font-size: .8rem; margin: 1.4rem 0 .6rem; color: var(--ink); }
+    section { margin-top: 3.5rem; }
+    h2 { font-size: 1.4rem; margin: 0 0 1.1rem; letter-spacing: -.01em; }
+    h3 { font-size: 1rem; margin: 1.6rem 0 .6rem; }
 
     .panel {
       background: var(--panel); color: var(--ink);
-      border: 4px solid var(--line); box-shadow: var(--shadow); padding: 1.25rem;
+      border: 1px solid var(--line); border-radius: 10px; padding: 1.5rem;
     }
-    .board { display: grid; gap: 1.5rem; grid-template-columns: 1fr; }
+    .board { display: grid; gap: 1.25rem; grid-template-columns: 1fr; }
     @media (min-width: 56rem) { .board { grid-template-columns: 1fr 1fr; align-items: start; } }
 
-    label { display: block; font-size: .62rem; line-height: 1.6; margin: 1.1rem 0 .4rem; }
-    label .hint { font-family: var(--font-body); font-size: 1rem; color: var(--muted); }
+    label { display: block; font-size: .92rem; font-weight: 600; margin: 1.1rem 0 .35rem; }
+    label .hint { font-weight: 400; font-size: .82rem; color: var(--muted); }
     textarea, input[type=text] {
-      width: 100%; font-family: var(--font-body); font-size: 1.15rem;
-      color: var(--ink); background: var(--panel-2);
-      border: 3px solid var(--line); border-radius: 0; padding: .5rem .6rem;
+      width: 100%; font-family: var(--mono); font-size: .92rem; line-height: 1.5;
+      color: var(--ink); background: var(--field);
+      border: 1px solid var(--line-strong); border-radius: 6px; padding: .55rem .7rem;
     }
-    textarea:focus, input[type=text]:focus { outline: 3px solid var(--gold); outline-offset: 0; }
-    textarea { resize: vertical; min-height: 4.5rem; }
-    .grid2 { display: grid; gap: .5rem 1rem; grid-template-columns: 1fr 1fr; }
+    textarea:focus, input[type=text]:focus { outline: 2px solid var(--ink); outline-offset: 1px; border-color: var(--ink); }
+    textarea { resize: vertical; min-height: 6.5rem; overflow: hidden; }
+    .grid2 { display: grid; gap: .25rem 1rem; grid-template-columns: 1fr 1fr; }
 
+    .hint { color: var(--muted); font-weight: 400; font-size: .82rem; }
+
+    /* left: github-style config builder */
+    .cfg-group { margin-top: 1.6rem; }
+    .cfg-group:first-child { margin-top: 0; }
+    .cfg-head { display: flex; align-items: baseline; justify-content: space-between; gap: .75rem; margin-bottom: .6rem; }
+    .cfg-head h3 { margin: 0; }
+
+    .btn {
+      font-family: var(--sans); font-size: .85rem; cursor: pointer;
+      border: 1px solid var(--line-strong); background: var(--field); color: var(--ink);
+      padding: .35rem .7rem; border-radius: 6px; white-space: nowrap;
+    }
+    .btn:hover { border-color: var(--ink); }
+    .btn-primary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+    .btn-primary:hover { opacity: .85; }
+
+    .kv-list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 8px; }
+    .kv-list:empty::after { content: "none yet"; display: block; padding: .8rem; color: var(--muted); font-size: .88rem; }
+    .kv-row { display: flex; align-items: center; gap: .75rem; padding: .55rem .75rem; border-top: 1px solid var(--line); }
+    .kv-row:first-child { border-top: 0; }
+    .kv-main { min-width: 0; flex: 1; display: flex; align-items: baseline; gap: .6rem; }
+    .kv-name { font-family: var(--mono); font-weight: 600; font-size: .9rem; }
+    .kv-val { font-family: var(--mono); font-size: .85rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .kv-actions { flex: none; display: flex; gap: .4rem; }
+    .kv-actions button {
+      font-family: var(--sans); font-size: .8rem; cursor: pointer; color: var(--muted);
+      background: transparent; border: 1px solid transparent; border-radius: 5px; padding: .2rem .45rem;
+    }
+    .kv-actions button:hover { color: var(--ink); border-color: var(--line-strong); }
+
+    .opt { border: 1px solid var(--line); border-radius: 8px; margin-top: .5rem; }
+    .opt > summary {
+      cursor: pointer; padding: .55rem .75rem; list-style: none;
+      display: flex; align-items: baseline; gap: .5rem; flex-wrap: wrap;
+    }
+    .opt > summary::-webkit-details-marker { display: none; }
+    .opt > summary::before { content: "+"; color: var(--muted); font-family: var(--mono); }
+    .opt[open] > summary::before { content: "\2212"; }
+    .opt > summary code { background: transparent; padding: 0; font-weight: 600; }
+    .opt[data-changed] > summary code { color: var(--ink); }
+    .opt[data-changed] > summary::after { content: "modified"; font-size: .72rem; color: var(--muted); border: 1px solid var(--line-strong); border-radius: 999px; padding: 0 .4rem; }
+    .opt-body { padding: 0 .75rem .7rem; }
+
+    /* right: reactive outputs */
+    .out-col { display: grid; gap: 1.25rem; align-content: start; }
     .out-head { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+    .out-head h3 { margin: 0; }
     pre.out {
-      margin: .6rem 0 0; padding: 1rem; min-height: 8rem;
+      margin: .8rem 0 0; padding: 1rem; min-height: 6rem;
       background: var(--screen); color: var(--screen-ink); overflow: auto;
-      border: 3px solid var(--line);
-      font-family: var(--font-body); font-size: 1.15rem; white-space: pre-wrap;
-      word-break: break-word;
+      border-radius: 8px;
+      font-family: var(--mono); font-size: .9rem; line-height: 1.55;
+      white-space: pre-wrap; word-break: break-word;
     }
     .err {
-      color: #fff; background: var(--accent); border: 3px solid var(--line);
-      padding: .5rem .7rem; margin-top: .8rem; font-size: 1.05rem;
+      color: #fff; background: #c0392b; border-radius: 6px;
+      padding: .55rem .75rem; margin-top: .8rem; font-size: .9rem;
     }
     .err:empty { display: none; }
 
-    .steps { list-style: none; margin: 1rem 0 0; padding: 0; display: grid; gap: .7rem; }
-    .step { border: 3px solid var(--line); background: var(--gold); color: var(--ink); padding: .6rem .7rem; box-shadow: var(--shadow-sm); }
-    .step.skipped { background: #c9c1ad; box-shadow: none; }
-    .step .name { font-family: var(--font-head); font-size: .58rem; line-height: 1.6; display: flex; gap: .6rem; align-items: center; }
-    .step .num {
-      flex: none; width: 1.7rem; height: 1.7rem; display: grid; place-items: center;
-      background: var(--accent); color: #fff; border: 3px solid var(--line);
-      border-radius: 50%; font-size: .55rem;
+    /* syntax highlighting — the .out screen inverts per theme, so token
+       colors do too: a dark-terminal palette on the light theme's dark
+       screen, a light-editor palette on the dark theme's light screen. */
+    .hl-key { color: #79c0ff; }
+    .hl-str { color: #7ee787; }
+    .hl-expr { color: #ffa657; }
+    .hl-punct { color: #8b949e; }
+    .hl-comment { color: #8b949e; font-style: italic; }
+    @media (prefers-color-scheme: dark) {
+      .hl-key { color: #0550ae; }
+      .hl-str { color: #0a7c2f; }
+      .hl-expr { color: #953800; }
+      .hl-punct { color: #6e7781; }
+      .hl-comment { color: #6e7781; }
     }
-    .step.skipped .num { background: var(--muted); }
-    .step pre { margin: .5rem 0 0; font-family: var(--font-body); font-size: 1.05rem; white-space: pre-wrap; color: var(--ink); }
 
     .copy {
-      font-size: .55rem; border: 3px solid var(--line); background: var(--accent-2);
-      color: #fff; padding: .55rem .7rem; cursor: pointer; box-shadow: var(--shadow-sm);
+      font-size: .82rem; font-family: var(--sans); border: 1px solid var(--line-strong);
+      background: transparent; color: var(--ink); padding: .35rem .7rem; cursor: pointer;
+      border-radius: 6px;
     }
-    .copy:active { transform: translate(3px, 3px); box-shadow: none; }
+    .copy:hover { background: var(--ink); color: var(--bg); }
 
-    footer.site { margin-top: 4rem; border-top: 4px solid var(--line); padding-top: 1.5rem; color: #fff; }
-    a { color: var(--gold); text-decoration: none; border-bottom: 2px solid currentColor; }
-    code { font-family: var(--font-body); font-size: 1.05em; background: rgba(0, 0, 0, .08); padding: .05rem .3rem; }
-    @media (prefers-color-scheme: dark) { code { background: rgba(255, 255, 255, .12); } }
-    ul, ol { padding-left: 1.4rem; }
-    li { margin: .3rem 0; }
+    /* shared add/edit dialog */
+    dialog {
+      border: 1px solid var(--line-strong); border-radius: 10px; padding: 0;
+      background: var(--panel); color: var(--ink); max-width: 30rem; width: calc(100% - 2rem);
+    }
+    dialog::backdrop { background: rgba(0, 0, 0, .5); }
+    .dlg-form { padding: 1.25rem; display: grid; gap: .35rem; }
+    .dlg-form h3 { margin: 0 0 .5rem; }
+    .dlg-form label { margin: .6rem 0 .15rem; }
+    .dlg-actions { display: flex; justify-content: flex-end; gap: .5rem; margin-top: 1rem; }
+    .dlg-err { color: #c0392b; font-size: .85rem; min-height: 1.2em; margin: .3rem 0 0; }
 
-    table.spec { width: 100%; border-collapse: collapse; margin-top: .6rem; font-size: 1.05rem; }
-    table.spec th, table.spec td { text-align: left; vertical-align: top; padding: .5rem .6rem; border: 2px solid var(--line); }
-    table.spec th { font-size: .55rem; background: var(--accent-2); color: #fff; }
+    footer.site { margin-top: 4rem; border-top: 1px solid var(--line); padding-top: 1.5rem; color: var(--muted); font-size: .92rem; }
+    a { color: var(--ink); text-decoration: underline; text-underline-offset: 2px; text-decoration-color: var(--line-strong); }
+    a:hover { text-decoration-color: currentColor; }
+    code { font-family: var(--mono); font-size: .88em; background: rgba(128, 128, 128, .14); padding: .1rem .3rem; border-radius: 4px; }
+    ul, ol { padding-left: 1.3rem; }
+    li { margin: .35rem 0; }
+
+    table.spec { width: 100%; border-collapse: collapse; margin-top: .8rem; font-size: .9rem; }
+    table.spec th, table.spec td { text-align: left; vertical-align: top; padding: .55rem .7rem; border: 1px solid var(--line); }
+    table.spec th { font-size: .85rem; background: var(--panel); }
     table.spec td code { white-space: pre-wrap; word-break: break-word; }
   </style>
 </head>
@@ -168,61 +225,77 @@
        =================================================================== -->
   <section id="playground" aria-labelledby="play-h">
     <h2 id="play-h">Playground</h2>
+    <p class="hint" style="margin:-.6rem 0 1.2rem">
+      Set up repository <code>vars</code> and <code>secrets</code> like you would
+      on GitHub, tweak the options, and watch the workflow step and resulting
+      <code>.env</code> derive on the right.
+    </p>
     <div class="board">
-      <div class="panel" id="inputs">
-        <label for="vars_obj">vars_obj <span class="hint">JSON object (e.g. <code>toJson(vars)</code>)</span></label>
-        <textarea id="vars_obj" spellcheck="false"></textarea>
-
-        <label for="secrets_obj">secrets_obj <span class="hint">JSON object — higher priority</span></label>
-        <textarea id="secrets_obj" spellcheck="false"></textarea>
-
-        <div class="grid2">
-          <div>
-            <label for="content_from_vars_include_pattern">content_from_vars <span class="hint">regex</span></label>
-            <input id="content_from_vars_include_pattern" type="text" spellcheck="false" />
+      <!-- LEFT: github-style repository configuration builder -->
+      <div class="panel" id="config">
+        <p class="hint" style="margin:0 0 1.2rem">
+          Pretend this is your repo's <strong>Settings → Secrets and variables → Actions</strong>,
+          plus the action's options.
+        </p>
+        <div class="cfg-group">
+          <div class="cfg-head">
+            <h3>Variables <span class="hint">repository <code>vars</code></span></h3>
+            <button class="btn" type="button" data-add="vars">New variable</button>
           </div>
-          <div>
-            <label for="content_from_secrets_include_pattern">content_from_secrets <span class="hint">regex</span></label>
-            <input id="content_from_secrets_include_pattern" type="text" spellcheck="false" />
-          </div>
-          <div>
-            <label for="vars_include_pattern">vars_include <span class="hint">regex</span></label>
-            <input id="vars_include_pattern" type="text" spellcheck="false" />
-          </div>
-          <div>
-            <label for="vars_exclude_pattern">vars_exclude <span class="hint">regex</span></label>
-            <input id="vars_exclude_pattern" type="text" spellcheck="false" />
-          </div>
-          <div>
-            <label for="secrets_include_pattern">secrets_include <span class="hint">regex</span></label>
-            <input id="secrets_include_pattern" type="text" spellcheck="false" />
-          </div>
-          <div>
-            <label for="secrets_exclude_pattern">secrets_exclude <span class="hint">regex</span></label>
-            <input id="secrets_exclude_pattern" type="text" spellcheck="false" />
-          </div>
+          <ul class="kv-list" id="vars_list"></ul>
         </div>
 
-        <label for="dotenv_content">dotenv_content <span class="hint">literal, appended last</span></label>
-        <textarea id="dotenv_content" spellcheck="false"></textarea>
+        <div class="cfg-group">
+          <div class="cfg-head">
+            <h3>Secrets <span class="hint">repository <code>secrets</code></span></h3>
+            <button class="btn" type="button" data-add="secrets">New secret</button>
+          </div>
+          <ul class="kv-list" id="secrets_list"></ul>
+        </div>
+
+        <div class="cfg-group">
+          <h3>Action options <span class="hint">expand to override a default</span></h3>
+          <div id="opts"></div>
+        </div>
 
         <div class="err" id="error" role="alert"></div>
       </div>
 
-      <div class="panel" id="result">
-        <div class="out-head">
-          <h2 style="font-size:1.1rem;margin:0">Generated .env</h2>
-          <button class="copy" id="copy" type="button">copy</button>
+      <!-- RIGHT: reactive derivation of the left config -->
+      <div class="out-col">
+        <div class="panel">
+          <div class="out-head">
+            <h3>Workflow step</h3>
+            <button class="copy" type="button" data-copy="yaml">copy</button>
+          </div>
+          <pre class="out" id="yaml">(loading…)</pre>
         </div>
-        <pre class="out" id="output">(loading engine…)</pre>
-        <p class="hint" style="color:var(--muted);font-size:.82rem;margin:.6rem 0 0">
-          The resolved env (deduped, last-win) — what your app loads. Below: how
-          each step builds it up, in order.
-        </p>
-        <ol class="steps" id="steps"></ol>
+        <div class="panel">
+          <div class="out-head">
+            <h3>Generated .env</h3>
+            <button class="copy" type="button" data-copy="output">copy</button>
+          </div>
+          <pre class="out" id="output">(loading engine…)</pre>
+        </div>
       </div>
     </div>
   </section>
+
+  <!-- shared add/edit dialog for vars and secrets -->
+  <dialog id="kv_dialog">
+    <form class="dlg-form" id="kv_form">
+      <h3 id="dlg_title">New variable</h3>
+      <label for="dlg_name">Name</label>
+      <input id="dlg_name" type="text" spellcheck="false" autocomplete="off" placeholder="MY_VARIABLE" />
+      <label for="dlg_value">Value</label>
+      <textarea id="dlg_value" spellcheck="false" rows="3"></textarea>
+      <p class="dlg-err" id="dlg_err"></p>
+      <div class="dlg-actions">
+        <button type="button" class="btn" id="dlg_cancel">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="dlg_save">Save</button>
+      </div>
+    </form>
+  </dialog>
 
   <!-- ===================================================================
        3. DOCUMENTATION — manual prose + a generated "Full spec" from action.yml.
@@ -276,97 +349,212 @@
 <script type="module">
   import { genv } from "https://esm.sh/jsr/@kindkitchen/genv@0.1.0";
 
+  // The published action tag this fragment points at (mirrors README usage).
+  const VERSION = "v1.0.1";
   // action.yml default for *_exclude: a sentinel that matches no real key.
   const IMPOSSIBLE = "NOTING_this_is_hardcoded_impossible_pattern{10}";
 
-  const FIELDS = [
-    "vars_obj", "secrets_obj", "dotenv_content",
-    "content_from_vars_include_pattern", "content_from_secrets_include_pattern",
-    "vars_include_pattern", "vars_exclude_pattern",
-    "secrets_include_pattern", "secrets_exclude_pattern",
+  const $ = (id) => document.getElementById(id);
+
+  // --- left-side state: repository vars/secrets, like GitHub settings ---------
+  let vars = [
+    { name: "PORT", value: "3000" },
+    { name: "CONFIG", value: "DB=postgres\nDB_PORT=5432" },
+  ];
+  let secrets = [
+    { name: "API_KEY", value: "s3cr3t" },
   ];
 
-  // A small illustrative default so the board is alive on first paint.
-  const DEFAULTS = {
-    vars_obj: JSON.stringify({ PORT: "3000", CONFIG: "DB=postgres\nDB_PORT=5432" }, null, 2),
-    secrets_obj: JSON.stringify({ API_KEY: "s3cr3t" }, null, 2),
-    dotenv_content: "NODE_ENV=production\nLOG_LEVEL=info",
-    content_from_vars_include_pattern: "^CONFIG$",
-    content_from_secrets_include_pattern: "",
-    vars_include_pattern: ".*",
-    vars_exclude_pattern: "^CONFIG$",
-    secrets_include_pattern: ".*",
-    secrets_exclude_pattern: "",
-  };
+  // Action options. Each is collapsed until expanded, then exposes an input
+  // pre-filled with the action.yml default. Order mirrors the README example.
+  const OPTIONS = [
+    { key: "dotenv_path", hint: "output file path", def: "./.env", multiline: false },
+    { key: "content_from_vars_include_pattern", hint: "regex — inline matching var values as raw content", def: "", multiline: false },
+    { key: "vars_include_pattern", hint: "regex", def: ".*", multiline: false },
+    { key: "vars_exclude_pattern", hint: "regex — overrides include on conflict", def: IMPOSSIBLE, multiline: false },
+    { key: "content_from_secrets_include_pattern", hint: "regex — inline matching secret values as raw content", def: "", multiline: false },
+    { key: "secrets_include_pattern", hint: "regex", def: ".*", multiline: false },
+    { key: "secrets_exclude_pattern", hint: "regex — overrides include on conflict", def: IMPOSSIBLE, multiline: false },
+    { key: "dotenv_content", hint: "literal block, appended last", def: "", multiline: true },
+  ];
+  const opt_def = Object.fromEntries(OPTIONS.map((o) => [o.key, o.def]));
+  const opt_val = (key) => $("opt_" + key).value;
 
-  const $ = (id) => document.getElementById(id);
-  const read = () => Object.fromEntries(FIELDS.map((f) => [f, $(f).value]));
+  const esc = (s) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+  const to_obj = (rows) => Object.fromEntries(rows.map((r) => [r.name, r.value]));
 
-  function parse_obj(label, txt) {
-    if (!txt.trim()) return {};
-    try { return JSON.parse(txt); }
-    catch { throw new Error(`${label} is not valid JSON`); }
-  }
-
-  // Mirror parity/adapter.ts from_action: 5 action steps -> ordered engine sources.
-  function steps_for(i) {
-    const vars = parse_obj("vars_obj", i.vars_obj);
-    const secrets = parse_obj("secrets_obj", i.secrets_obj);
-    const cfv = i.content_from_vars_include_pattern;
-    const cfs = i.content_from_secrets_include_pattern;
+  // --- engine wiring: 5 ordered action steps -> engine sources ---------------
+  function sources_for() {
+    const v = to_obj(vars);
+    const s = to_obj(secrets);
+    const cfv = opt_val("content_from_vars_include_pattern");
+    const cfs = opt_val("content_from_secrets_include_pattern");
     const out = [];
-    if (cfv) out.push({ label: "content_from_vars", source: { data: vars, include: cfv, content: cfv } });
-    out.push({ label: "vars · key=value", source: { data: vars, include: i.vars_include_pattern || ".*", exclude: i.vars_exclude_pattern || IMPOSSIBLE } });
-    if (cfs) out.push({ label: "content_from_secrets", source: { data: secrets, include: cfs, content: cfs } });
-    out.push({ label: "secrets · key=value", source: { data: secrets, include: i.secrets_include_pattern || ".*", exclude: i.secrets_exclude_pattern || IMPOSSIBLE } });
-    out.push({ label: "dotenv_content", source: { data: i.dotenv_content || "" } });
+    if (cfv) out.push({ data: v, include: cfv, content: cfv });
+    out.push({ data: v, include: opt_val("vars_include_pattern") || ".*", exclude: opt_val("vars_exclude_pattern") || IMPOSSIBLE });
+    if (cfs) out.push({ data: s, include: cfs, content: cfs });
+    out.push({ data: s, include: opt_val("secrets_include_pattern") || ".*", exclude: opt_val("secrets_exclude_pattern") || IMPOSSIBLE });
+    out.push({ data: opt_val("dotenv_content") || "" });
     return out;
   }
 
-  // The five named steps in order; mark which are active for the timeline.
-  const STEP_ORDER = [
-    "content_from_vars", "vars · key=value", "content_from_secrets",
-    "secrets · key=value", "dotenv_content",
-  ];
+  // --- syntax highlighting (lightweight, emits escaped <span>s) ---------------
+  const HL = {
+    key: (t) => `<span class="hl-key">${esc(t)}</span>`,
+    str: (t) => `<span class="hl-str">${esc(t)}</span>`,
+    expr: (t) => `<span class="hl-expr">${esc(t)}</span>`,
+    punct: (t) => `<span class="hl-punct">${esc(t)}</span>`,
+    comment: (t) => `<span class="hl-comment">${esc(t)}</span>`,
+  };
+
+  function hl_dotenv(text) {
+    return text.split("\n").map((line) => {
+      if (/^\s*#/.test(line)) return HL.comment(line);
+      const m = line.match(/^([A-Za-z_][A-Za-z0-9_]*)(=)([\s\S]*)$/);
+      if (!m) return esc(line);
+      const v = m[3];
+      const vh = /^(".*"|'.*')$/.test(v) ? HL.str(v) : esc(v);
+      return HL.key(m[1]) + HL.punct(m[2]) + vh;
+    }).join("\n");
+  }
+
+  // --- yaml fragment: action usage that mirrors the current config ------------
+  // Real workflow-step indentation: `- uses` at 0, `with:` at 2, its keys at 4,
+  // a block scalar's content at 6.
+  function yaml_value_html(v) {
+    if (v.startsWith("${{")) return HL.expr(v);     // github expression, unquoted
+    return HL.str(JSON.stringify(v));               // safe double-quoted scalar
+  }
+
+  function build_yaml() {
+    const items = [];
+    if (opt_val("dotenv_path") !== opt_def.dotenv_path) items.push(["dotenv_path", opt_val("dotenv_path")]);
+    if (vars.length) items.push(["vars_obj", "${{ toJson(vars) }}"]);
+    if (secrets.length) items.push(["secrets_obj", "${{ toJson(secrets) }}"]);
+    for (const key of [
+      "content_from_vars_include_pattern", "vars_include_pattern", "vars_exclude_pattern",
+      "content_from_secrets_include_pattern", "secrets_include_pattern", "secrets_exclude_pattern",
+    ]) {
+      const val = opt_val(key);
+      if (val !== opt_def[key]) items.push([key, val]);
+    }
+    const dc = opt_val("dotenv_content");
+
+    const lines = [HL.punct("- ") + HL.key("uses") + HL.punct(":") + " " + HL.str("kindkitchen/genv@" + VERSION)];
+    if (items.length || dc) {
+      lines.push("  " + HL.key("with") + HL.punct(":"));
+      for (const [k, v] of items) lines.push("    " + HL.key(k) + HL.punct(":") + " " + yaml_value_html(v));
+      if (dc) {
+        lines.push("    " + HL.key("dotenv_content") + HL.punct(":") + " " + HL.punct("|"));
+        for (const l of dc.replace(/\n$/, "").split("\n")) lines.push("      " + esc(l));
+      }
+    }
+    return lines.join("\n");
+  }
+
+  // --- rendering -------------------------------------------------------------
+  function render_list(kind) {
+    const rows = kind === "vars" ? vars : secrets;
+    const masked = kind === "secrets";
+    $(kind + "_list").innerHTML = rows.map((r, idx) => {
+      const val = masked ? "••••••••" : esc(r.value.replace(/\n/g, " "));
+      return `<li class="kv-row">` +
+        `<div class="kv-main"><span class="kv-name">${esc(r.name)}</span><span class="kv-val">${val}</span></div>` +
+        `<div class="kv-actions"><button type="button" data-edit="${kind}:${idx}">Edit</button>` +
+        `<button type="button" data-del="${kind}:${idx}">Remove</button></div></li>`;
+    }).join("");
+  }
 
   function render() {
-    const i = read();
-    let steps;
-    try { steps = steps_for(i); }
+    let env;
+    try { env = genv(sources_for()); }
     catch (e) { $("error").textContent = e.message; return; }
     $("error").textContent = "";
-
-    const sources = steps.map((s) => s.source);
-    $("output").textContent = genv(sources) || "(empty)";
-
-    const by_label = new Map(steps.map((s) => [s.label, s.source]));
-    $("steps").innerHTML = "";
-    STEP_ORDER.forEach((label, idx) => {
-      const src = by_label.get(label);
-      const li = document.createElement("li");
-      li.className = "step" + (src ? "" : " skipped");
-      const lines = src ? genv([src]).replace(/\n$/, "") : "";
-      li.innerHTML =
-        `<div class="name"><span class="num">${idx + 1}</span>${label}${src ? "" : " · skipped"}</div>` +
-        (src && lines ? `<pre>${escape_html(lines)}</pre>` : "");
-      $("steps").appendChild(li);
-    });
+    $("output").innerHTML = hl_dotenv(env || "(empty)");
+    $("yaml").innerHTML = build_yaml();
+    // flag options that differ from their default
+    for (const o of OPTIONS) {
+      const det = $("opt_" + o.key).closest(".opt");
+      if (opt_val(o.key) !== o.def) det.setAttribute("data-changed", "");
+      else det.removeAttribute("data-changed");
+    }
   }
 
-  function escape_html(s) {
-    return s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+  // --- build the options accordion -------------------------------------------
+  $("opts").innerHTML = OPTIONS.map((o) => {
+    const field = o.multiline
+      ? `<textarea id="opt_${o.key}" spellcheck="false" rows="3"></textarea>`
+      : `<input id="opt_${o.key}" type="text" spellcheck="false" />`;
+    return `<details class="opt"><summary><code>${o.key}</code> <span class="hint">${o.hint}</span></summary>` +
+      `<div class="opt-body">${field}</div></details>`;
+  }).join("");
+  for (const o of OPTIONS) {
+    const el = $("opt_" + o.key);
+    el.value = o.def;
+    el.addEventListener("input", render);
   }
 
-  // init
-  for (const f of FIELDS) {
-    $(f).value = DEFAULTS[f];
-    $(f).addEventListener("input", render);
+  // --- add/edit dialog for vars & secrets ------------------------------------
+  const dlg = $("kv_dialog");
+  let editing = null; // { kind, index } | { kind, index: null } for new
+
+  function open_dialog(kind, index) {
+    editing = { kind, index };
+    const isNew = index === null;
+    const noun = kind === "vars" ? "variable" : "secret";
+    $("dlg_title").textContent = (isNew ? "New " : "Edit ") + noun;
+    const row = isNew ? { name: "", value: "" } : (kind === "vars" ? vars : secrets)[index];
+    $("dlg_name").value = row.name;
+    $("dlg_value").value = row.value;
+    $("dlg_err").textContent = "";
+    dlg.showModal();
+    $("dlg_name").focus();
   }
-  $("copy").addEventListener("click", async () => {
-    await navigator.clipboard.writeText($("output").textContent);
-    $("copy").textContent = "copied!";
-    setTimeout(() => ($("copy").textContent = "copy"), 1200);
+
+  $("kv_form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const name = $("dlg_name").value.trim();
+    const value = $("dlg_value").value;
+    if (!name) { $("dlg_err").textContent = "Name is required."; return; }
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) {
+      $("dlg_err").textContent = "Name must be letters, digits or _ and not start with a digit.";
+      return;
+    }
+    const rows = editing.kind === "vars" ? vars : secrets;
+    const dup = rows.findIndex((r) => r.name === name);
+    if (dup !== -1 && dup !== editing.index) { $("dlg_err").textContent = "Name already exists."; return; }
+    if (editing.index === null) rows.push({ name, value });
+    else rows[editing.index] = { name, value };
+    dlg.close();
+    render_list(editing.kind);
+    render();
   });
+
+  $("dlg_cancel").addEventListener("click", () => dlg.close());
+
+  document.addEventListener("click", (e) => {
+    const add = e.target.closest("[data-add]");
+    if (add) { open_dialog(add.dataset.add, null); return; }
+    const edit = e.target.closest("[data-edit]");
+    if (edit) { const [k, i] = edit.dataset.edit.split(":"); open_dialog(k, +i); return; }
+    const del = e.target.closest("[data-del]");
+    if (del) {
+      const [k, i] = del.dataset.del.split(":");
+      (k === "vars" ? vars : secrets).splice(+i, 1);
+      render_list(k); render(); return;
+    }
+    const copy = e.target.closest("[data-copy]");
+    if (copy) {
+      navigator.clipboard.writeText($(copy.dataset.copy).textContent);
+      const prev = copy.textContent;
+      copy.textContent = "copied!";
+      setTimeout(() => (copy.textContent = prev), 1200);
+    }
+  });
+
+  // --- init ------------------------------------------------------------------
+  render_list("vars");
+  render_list("secrets");
   render();
 </script>
 </body>
