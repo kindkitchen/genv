@@ -151,7 +151,7 @@
     /* the whole playground collapses like an option (open by default): its
        heading is the toggle, with the same +/- affordance as the options. */
     .play-section > summary {
-      cursor: pointer; list-style: none; display: flex; align-items: center; gap: .6rem; margin-bottom: 1.1rem;
+      cursor: pointer; list-style: none; display: flex; align-items: flex-start; gap: .6rem; margin-bottom: 1.1rem;
     }
     .play-section > summary::-webkit-details-marker { display: none; }
     .play-section > summary::before { content: "+"; color: var(--muted); font-family: var(--mono); font-size: 1.3rem; line-height: 1; }
@@ -161,7 +161,7 @@
     /* ===== invite guide: one looping hand-drawn composition over the board
        that walks the eye CONFIG var -> Generated .env -> the option checkbox.
        Anchor boxes are measured in JS (layout_guide); each segment animates on
-       a shared 7s cycle so the tour reads in order, then repeats. ===== */
+       a shared 16s cycle so the tour reads in order, then repeats. ===== */
     .guide {
       position: absolute; inset: 0; width: 100%; height: 100%;
       overflow: visible; pointer-events: none; z-index: 4;
@@ -169,6 +169,7 @@
     .guide path {
       fill: none; stroke-linecap: round; stroke-linejoin: round;
       stroke-dasharray: 100; stroke-dashoffset: 100; opacity: 0;
+      filter: url(#pencil); /* roughen the edges into a pencil-sketched line */
     }
     /* colour/width is one axis, the sequence slot another — so the second tip
        can reuse the early slots (starting at the red line) without the yellow. */
@@ -177,11 +178,11 @@
     .gk-redline { stroke: #e5484d; stroke-width: 2.8; }
     .gk-garrow  { stroke: #46c97a; stroke-width: 2.4; }
     .gk-gcircle { stroke: #57f08a; stroke-width: 3; }
-    .gt1 { animation: g-seg1 7s ease-in-out infinite; }
-    .gt2 { animation: g-seg2 7s ease-in-out infinite; }
-    .gt3 { animation: g-seg3 7s ease-in-out infinite; }
-    .gt4 { animation: g-seg4 7s ease-in-out infinite; }
-    .gt5 { animation: g-seg5 7s ease-in-out infinite; }
+    .gt1 { animation: g-seg1 16s ease-in-out infinite; }
+    .gt2 { animation: g-seg2 16s ease-in-out infinite; }
+    .gt3 { animation: g-seg3 16s ease-in-out infinite; }
+    .gt4 { animation: g-seg4 16s ease-in-out infinite; }
+    .gt5 { animation: g-seg5 16s ease-in-out infinite; }
 
     /* each segment: hidden, draw within its staggered window, hold, fade before
        the cycle restarts — so the marks appear one after another, in order. */
@@ -202,7 +203,7 @@
     .rb-ring path {
       fill: none; stroke-width: 1.6; stroke-linecap: round;
       stroke-dasharray: 330; stroke-dashoffset: 330;
-      animation: rb-draw 1.1s ease-out forwards, rb-fade 1s ease-in 3s forwards;
+      animation: rb-draw 1.7s ease-out forwards, rb-fade 1.2s ease-in 3.8s forwards;
     }
     @keyframes rb-draw { to { stroke-dashoffset: 0; } }
     @keyframes rb-fade { to { opacity: 0; } }
@@ -211,6 +212,11 @@
       .guide path,
       .rb-ring path { animation: none; opacity: 1; stroke-dashoffset: 0; }
     }
+
+    /* the guide is a side-by-side tour (CONFIG var -> .env -> the checkbox);
+       once the board stacks into one column the connecting arrows turn into long
+       diagonals crossing unrelated rows, so retire it below the 2-column break. */
+    @media (max-width: 56rem) { .guide { display: none; } }
 
     /* right: reactive outputs */
     .out-col { display: grid; gap: 1.25rem; align-content: start; }
@@ -261,7 +267,7 @@
       position: absolute; left: 0; bottom: -.42em; width: 100%; height: .5em;
       overflow: visible; pointer-events: none;
     }
-    .goal .goal-line path { fill: none; stroke: #5fd98a; stroke-width: 2.6; stroke-linecap: round; }
+    .goal .goal-line path { fill: none; stroke: #5fd98a; stroke-width: 2.6; stroke-linecap: round; filter: url(#pencil); }
 
     .copy {
       font-size: .82rem; font-family: var(--sans); border: 1px solid var(--line-strong);
@@ -289,6 +295,8 @@
     ul, ol { padding-left: 1.3rem; }
     li { margin: .35rem 0; }
 
+    /* the spec table can be wide; let it scroll sideways instead of overflowing */
+    .spec-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
     table.spec { width: 100%; border-collapse: collapse; margin-top: .8rem; font-size: .9rem; }
     table.spec th, table.spec td { text-align: left; vertical-align: top; padding: .55rem .7rem; border: 1px solid var(--line); }
     table.spec th { font-size: .85rem; background: var(--panel); }
@@ -371,6 +379,19 @@
     .theme-bar .gh-link:hover { background: var(--accent); color: var(--on-accent); }
     .theme-bar .gh-link:active { transform: translate(2px, 2px); }
     @media (max-width: 40rem) {
+      html { font-size: 106.25%; }              /* dial back the VT323 up-scale */
+      body { overflow-x: hidden; }              /* guard against stray side-scroll */
+      .wrap { padding: 1rem .85rem 4rem; }
+      header.hero { padding: 2.2rem 0 .5rem; }
+      section { margin-top: 2.5rem; }
+      .panel { padding: 1rem; }
+      .board { gap: 1rem; }
+      pre.out { padding: .8rem; font-size: .98rem; }
+      .cfg-head { flex-wrap: wrap; }            /* title + add button stack if tight */
+      h2 .hint, h3 .hint { font-family: var(--font-body); }  /* pixel hint font is too wide for narrow rows */
+      .kv-actions button { padding: .3rem .55rem; } /* bigger tap targets */
+      .opt-toggle { width: 1.15rem; height: 1.15rem; }
+      table.spec td code { word-break: break-all; }
       .theme-bar { top: .4rem; right: .4rem; gap: .2rem; padding: .2rem; }
       .theme-bar button { font-size: .85rem; padding: .15rem .3rem; }
       .theme-bar .gh-link svg { width: 15px; height: 15px; }
@@ -389,6 +410,21 @@
   </script>
 </head>
 <body>
+<!-- roughening filter that gives the guide strokes a sketched, pencil edge:
+     a low-frequency displacement shakes the path like a wavering hand, then a
+     fine high-frequency grain modulates the stroke's opacity so it reads as
+     graphite laid on paper rather than a flat vector line. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <filter id="pencil" x="-40%" y="-40%" width="180%" height="180%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.025 0.045" numOctaves="4" seed="7" result="rough" />
+      <feDisplacementMap in="SourceGraphic" in2="rough" scale="4.6" xChannelSelector="R" yChannelSelector="G" result="disp" />
+      <feTurbulence type="fractalNoise" baseFrequency="0.4 0.55" numOctaves="3" seed="3" result="grain" />
+      <feColorMatrix in="grain" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.5 0.55" result="grain_a" />
+      <feComposite in="disp" in2="grain_a" operator="in" />
+    </filter>
+  </defs>
+</svg>
 <div class="wrap">
 
   <nav class="theme-bar" id="theme_bar" aria-label="site controls">
@@ -523,6 +559,7 @@
         <li><code>dotenv_content</code> — literal block, appended last (absolute priority).</li>
       </ol>
       <h3>Full spec</h3>
+      <div class="spec-wrap">
       <!-- GENERATED:action-inputs:start -->
       <table class="spec">
         <thead><tr><th>input</th><th>description</th><th>default</th></tr></thead>
@@ -540,6 +577,7 @@
         </tbody>
       </table>
       <!-- GENERATED:action-inputs:end -->
+      </div>
     </div>
   </section>
 
@@ -802,7 +840,7 @@
   // value (red line, drawn right-to-left) -> green arrow -> the option checkbox
   // (green circle). Phase 1 starts at the red line (no yellow), then the green
   // arrow + circle. Positions come from measured anchor boxes; sequencing +
-  // looping live in CSS (g-seg* keyframes on a shared 7s cycle).
+  // looping live in CSS (g-seg* keyframes on a shared 16s cycle).
 
   const r1 = (n) => Math.round(n * 10) / 10; // tidy 1-decimal coords
   // stable signed jitter in [-1,1] from a seed — deterministic per position so
@@ -931,7 +969,7 @@
     }
     setTimeout(() => {
       for (const r of document.querySelectorAll(".rb-ring")) r.remove();
-    }, 4600);
+    }, 5400);
   }
 
   $("opts").innerHTML = OPTIONS.map((o) => {
