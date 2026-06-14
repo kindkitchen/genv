@@ -8,42 +8,76 @@
   <meta name="description" content="genv is a GitHub Action that computes a dotenv file from your repository vars and secrets following a flexible merge strategy. Try it live." />
   <!-- Single static file by design: no build step, no node_modules. The
        playground reuses the published engine (jsr:@kindkitchen/genv) in-browser
-       via esm.sh. Visual direction: 8-bit/pixel chrome (hard borders + offset
-       shadows, sharp corners) over a monochrome palette (dark/grey/white,
-       inverted per theme); Pixelify Sans display headings with readable system
-       body/monospace; color appears only in the yaml/.env highlighting and the
-       green hand-drawn marks. -->
+       via esm.sh. Visual direction: 8-bit/NES pixel (Press Start 2P headings +
+       VT323 body, hard borders + offset shadows, sharp corners). Three palettes
+       — NES, monochrome, monochrome+green — each with a light and dark variant,
+       chosen from the top-right switch (data-palette/data-mode on <html>,
+       persisted). The yaml/.env highlighting and the green hand-drawn marks
+       always carry color. -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet" />
   <style>
     :root {
-      color-scheme: light dark;
-      --bg: #ffffff;
-      --panel: #fafafa;
-      --field: #ffffff;
-      --ink: #1a1a1a;
-      --muted: #6b6b6b;
-      --line: #e2e2e2;
-      --line-strong: #c9c9c9;
-      /* output panel: inverted relative to the page */
-      --screen: #1a1a1a;
-      --screen-ink: #f2f2f2;
       --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
       --mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+      --font-head: "Press Start 2P", var(--sans);
+      --font-body: "VT323", var(--mono);
+      /* bright syntax palette — default; correct on every dark .out screen */
+      --hl-key: #79c0ff; --hl-str: #7ee787; --hl-expr: #ffa657;
+      --hl-punct: #8b949e; --hl-comment: #8b949e; --hl-dim: #8b949e;
     }
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --bg: #161616;
-        --panel: #1e1e1e;
-        --field: #161616;
-        --ink: #ededed;
-        --muted: #9a9a9a;
-        --line: #333333;
-        --line-strong: #444444;
-        --screen: #ededed;
-        --screen-ink: #161616;
-      }
+
+    /* ===== palettes: NES / monochrome / monochrome+green, each light+dark.
+       data-palette + data-mode on <html> select one (set by the top-right
+       switch and an early inline script; persisted in localStorage). ===== */
+
+    /* monochrome — also the no-attribute default */
+    :root {
+      color-scheme: light;
+      --bg: #ffffff; --panel: #fafafa; --field: #ffffff;
+      --ink: #1a1a1a; --muted: #6b6b6b; --line: #e2e2e2; --line-strong: #c9c9c9;
+      --edge: #1a1a1a; --screen: #1a1a1a; --screen-ink: #f2f2f2;
+      --accent: #1a1a1a; --on-accent: #ffffff; --grid: transparent;
+      --head-ink: var(--ink); --head-shadow: none;
+      --pill-bg: transparent; --pill-ink: var(--ink);
+    }
+    :root[data-palette="mono"][data-mode="dark"],
+    :root[data-palette="mono-green"][data-mode="dark"] {
+      color-scheme: dark;
+      --bg: #161616; --panel: #1e1e1e; --field: #161616;
+      --ink: #ededed; --muted: #9a9a9a; --line: #333333; --line-strong: #444444;
+      --edge: #ededed; --screen: #ededed; --screen-ink: #161616;
+      --accent: #ededed; --on-accent: #161616;
+      /* light .out screen -> dark syntax palette */
+      --hl-key: #0550ae; --hl-str: #0a7c2f; --hl-expr: #953800;
+      --hl-punct: #6e7781; --hl-comment: #6e7781; --hl-dim: #6e7781;
+    }
+
+    /* monochrome + green: same neutrals, green action accent */
+    :root[data-palette="mono-green"] { --accent: #2aa84a; --on-accent: #ffffff; }
+    :root[data-palette="mono-green"][data-mode="dark"] { --accent: #54d97a; --on-accent: #06210f; }
+
+    /* NES — closest to the skill reference */
+    :root[data-palette="nes"] {
+      color-scheme: light;
+      --bg: #5c94fc; --panel: #fdf6e3; --field: #ffffff;
+      --ink: #21130d; --muted: #7a6a55; --line: #21130d; --line-strong: #21130d;
+      --edge: #21130d; --screen: #0b1733; --screen-ink: #8ff088;
+      --accent: #e23b2e; --on-accent: #ffffff; --gold: #fac000;
+      --grid: rgba(255, 255, 255, .10);
+      --head-ink: var(--gold); --head-shadow: 3px 3px 0 var(--line);
+      --pill-bg: var(--accent); --pill-ink: #ffffff;
+    }
+    :root[data-palette="nes"][data-mode="dark"] {
+      color-scheme: dark;
+      --bg: #0a1024; --panel: #1a1336; --field: #221a44;
+      --ink: #f4ecd8; --muted: #b09be0; --line: #000000; --line-strong: #000000;
+      --edge: #000000; --screen: #05102a; --screen-ink: #8ff088;
+      --accent: #ff5a4d; --on-accent: #ffffff; --gold: #fac000;
+      --grid: rgba(255, 255, 255, .07);
+      --head-ink: var(--gold); --head-shadow: 3px 3px 0 var(--line);
+      --pill-bg: var(--accent); --pill-ink: #ffffff;
     }
     * { box-sizing: border-box; }
     body {
@@ -178,20 +212,12 @@
     /* syntax highlighting — the .out screen inverts per theme, so token
        colors do too: a dark-terminal palette on the light theme's dark
        screen, a light-editor palette on the dark theme's light screen. */
-    .hl-key { color: #79c0ff; }
-    .hl-str { color: #7ee787; }
-    .hl-expr { color: #ffa657; }
-    .hl-punct { color: #8b949e; }
-    .hl-comment { color: #8b949e; font-style: italic; }
-    @media (prefers-color-scheme: dark) {
-      .hl-key { color: #0550ae; }
-      .hl-str { color: #0a7c2f; }
-      .hl-expr { color: #953800; }
-      .hl-punct { color: #6e7781; }
-      .hl-comment { color: #6e7781; }
-    }
-    .hl-dim { color: #8b949e; }
-    @media (prefers-color-scheme: dark) { .hl-dim { color: #6e7781; } }
+    .hl-key { color: var(--hl-key); }
+    .hl-str { color: var(--hl-str); }
+    .hl-expr { color: var(--hl-expr); }
+    .hl-punct { color: var(--hl-punct); }
+    .hl-comment { color: var(--hl-comment); font-style: italic; }
+    .hl-dim { color: var(--hl-dim); }
     /* green hand-drawn underline marking the deploy command as the goal */
     .goal { position: relative; display: inline-block; }
     .goal .goal-line {
@@ -231,32 +257,90 @@
     table.spec th { font-size: .85rem; background: var(--panel); }
     table.spec td code { white-space: pre-wrap; word-break: break-word; }
 
-    /* ----- pixel pass: 8-bit-flavored chrome over the monochrome palette.
-       Colors stay black/grey/white — only the yaml/.env highlighting and the
-       green hand-drawn marks carry color. Fonts sit between the old
-       Press Start 2P / VT323 and plain system: pixel display headings, with the
-       body and code left in readable system faces. --edge drives both the hard
-       outline and the offset (no-blur) shadow, so it inverts per theme. ----- */
+    /* ----- pixel pass: full 8-bit/NES chrome, shared by every palette. Colors
+       come from the active palette's variables — only the yaml/.env syntax
+       highlighting and the green hand-drawn marks are fixed colors. --edge
+       drives the hard outline and the offset (no-blur) shadow. ----- */
     :root {
-      --font-head: "Pixelify Sans", system-ui, sans-serif;
-      --edge: var(--ink);
       --px-shadow: 4px 4px 0 var(--edge);
       --px-shadow-sm: 3px 3px 0 var(--edge);
     }
+    html { font-size: 118.75%; }                 /* VT323 runs small — scale up */
+    body {
+      font-family: var(--font-body);
+      background-image:
+        linear-gradient(var(--grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+      background-size: 16px 16px;
+    }
+    body, textarea, input[type=text], .btn, .copy, .kv-name, .kv-val,
+    .kv-actions button, pre.out, code { font-family: var(--font-body); }
     h1, h2, h3, .pill { font-family: var(--font-head); letter-spacing: 0; }
+    header.hero h1 { font-size: clamp(1.8rem, 7vw, 2.8rem); letter-spacing: 0; }
+    h2 { font-size: 1rem; line-height: 1.5; }
+    h3 { font-size: .8rem; line-height: 1.5; }
+    h1, h2 { color: var(--head-ink); text-shadow: var(--head-shadow); }
+
+    /* sharp corners + hard outlines + offset shadows on every raised box */
     .panel, pre.out, dialog, .kv-list, .opt,
     textarea, input[type=text], .btn, .copy, .pill { border-radius: 0; }
     .panel { border: 2px solid var(--edge); box-shadow: var(--px-shadow); }
     pre.out, textarea, input[type=text], .kv-list, .opt { border: 2px solid var(--edge); }
-    .pill { border: 2px solid var(--edge); box-shadow: var(--px-shadow-sm); color: var(--ink); }
+    pre.out { font-size: 1.05rem; line-height: 1.5; }
+    textarea, input[type=text] { font-size: 1rem; }
+    .pill { border: 2px solid var(--edge); box-shadow: var(--px-shadow-sm); background: var(--pill-bg); color: var(--pill-ink); }
+    :root[data-palette="nes"] .pill { transform: rotate(-2deg); }
     .btn, .copy { border: 2px solid var(--edge); box-shadow: var(--px-shadow-sm); }
     .btn:active, .copy:active { transform: translate(3px, 3px); box-shadow: none; }
     dialog { border: 2px solid var(--edge); box-shadow: var(--px-shadow); }
     table.spec th, table.spec td { border: 2px solid var(--edge); }
+
+    /* palette accent on the active controls */
+    .btn-primary { background: var(--accent); color: var(--on-accent); border-color: var(--edge); }
+    .copy:hover { background: var(--accent); color: var(--on-accent); }
+    textarea:focus, input[type=text]:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
+    .opt-toggle { accent-color: var(--accent); }
+
+    /* top-right theme switch: three palette buttons + a light/dark toggle */
+    .theme-bar {
+      position: fixed; top: .6rem; right: .6rem; z-index: 50;
+      display: flex; gap: .3rem; padding: .3rem;
+      background: var(--panel); border: 2px solid var(--edge); box-shadow: var(--px-shadow-sm);
+    }
+    .theme-bar button {
+      font-family: var(--font-body); font-size: 1rem; line-height: 1; cursor: pointer;
+      background: var(--field); color: var(--ink);
+      border: 2px solid var(--edge); border-radius: 0; padding: .25rem .45rem;
+    }
+    .theme-bar button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+    .theme-bar button:active { transform: translate(2px, 2px); }
+    @media (max-width: 40rem) {
+      .theme-bar { top: .4rem; right: .4rem; gap: .2rem; padding: .2rem; }
+      .theme-bar button { font-size: .85rem; padding: .15rem .3rem; }
+    }
   </style>
+  <script>
+    /* Set the theme before first paint to avoid a flash; the module below wires
+       the switch. Default palette NES (the skill reference); mode follows OS. */
+    (function () {
+      try {
+        var r = document.documentElement;
+        r.setAttribute("data-palette", localStorage.getItem("genv_palette") || "nes");
+        r.setAttribute("data-mode", localStorage.getItem("genv_mode") ||
+          (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"));
+      } catch (e) { /* private mode */ }
+    })();
+  </script>
 </head>
 <body>
 <div class="wrap">
+
+  <nav class="theme-bar" id="theme_bar" aria-label="theme switch">
+    <button type="button" class="th-pal" data-set-palette="nes" aria-pressed="false">NES</button>
+    <button type="button" class="th-pal" data-set-palette="mono" aria-pressed="false">Mono</button>
+    <button type="button" class="th-pal" data-set-palette="mono-green" aria-pressed="false">Mono+</button>
+    <button type="button" class="th-mode" id="mode_toggle" title="toggle light / dark">dark</button>
+  </nav>
 
   <header class="hero">
     <span class="pill">GitHub Action</span>
@@ -667,6 +751,29 @@
       setTimeout(() => (copy.textContent = prev), 1200);
     }
   });
+
+  // --- theme switch: palette x light/dark, persisted; reflects active state --
+  const html_el = document.documentElement;
+  function sync_theme() {
+    const pal = html_el.getAttribute("data-palette");
+    for (const b of document.querySelectorAll(".th-pal"))
+      b.setAttribute("aria-pressed", String(b.dataset.setPalette === pal));
+    $("mode_toggle").textContent = html_el.getAttribute("data-mode");
+  }
+  for (const b of document.querySelectorAll(".th-pal")) {
+    b.addEventListener("click", () => {
+      html_el.setAttribute("data-palette", b.dataset.setPalette);
+      try { localStorage.setItem("genv_palette", b.dataset.setPalette); } catch { /* private mode */ }
+      sync_theme();
+    });
+  }
+  $("mode_toggle").addEventListener("click", () => {
+    const next = html_el.getAttribute("data-mode") === "dark" ? "light" : "dark";
+    html_el.setAttribute("data-mode", next);
+    try { localStorage.setItem("genv_mode", next); } catch { /* private mode */ }
+    sync_theme();
+  });
+  sync_theme();
 
   // --- init ------------------------------------------------------------------
   render_list("vars");
