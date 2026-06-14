@@ -395,7 +395,7 @@
   // pre-filled with the action.yml default. Order mirrors the README example.
   const OPTIONS = [
     { key: "dotenv_path", hint: "output file path", def: "./.env" },
-    { key: "content_from_vars_include_pattern", hint: "regex — inline matching var values as raw content", def: "", init: "CONFIG", invite: true },
+    { key: "content_from_vars_include_pattern", hint: "regex — inline matching var values as raw content", def: "", init: "CONFIG", invite: true, open: true },
     { key: "vars_include_pattern", hint: "regex", def: ".*" },
     { key: "vars_exclude_pattern", hint: "regex — overrides include on conflict", def: IMPOSSIBLE },
     { key: "content_from_secrets_include_pattern", hint: "regex — inline matching secret values as raw content", def: "" },
@@ -529,7 +529,7 @@
       ? `<textarea id="opt_${o.key}" spellcheck="false" rows="3"></textarea>`
       : `<input id="opt_${o.key}" type="text" spellcheck="false" />`;
     const circle = o.invite && !try_done ? TRY_CIRCLE : "";
-    return `<details class="opt"><summary>` +
+    return `<details class="opt"${o.open ? " open" : ""}><summary>` +
       `<span class="chk-wrap"><input type="checkbox" class="opt-toggle" id="chk_${o.key}" title="toggle this option's effect" />${circle}</span>` +
       `<code>${o.key}</code> <span class="hint">${o.hint}</span></summary>` +
       `<div class="opt-body">${field}</div></details>`;
