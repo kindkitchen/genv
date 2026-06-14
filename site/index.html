@@ -8,9 +8,14 @@
   <meta name="description" content="genv is a GitHub Action that computes a dotenv file from your repository vars and secrets following a flexible merge strategy. Try it live." />
   <!-- Single static file by design: no build step, no node_modules. The
        playground reuses the published engine (jsr:@kindkitchen/genv) in-browser
-       via esm.sh. Visual direction: minimal and monochrome (dark/grey/white,
-       inverted per theme), system fonts with monospace only for code/env.
-       Styling stays out of the way so the content/core idea reads first. -->
+       via esm.sh. Visual direction: 8-bit/pixel chrome (hard borders + offset
+       shadows, sharp corners) over a monochrome palette (dark/grey/white,
+       inverted per theme); Pixelify Sans display headings with readable system
+       body/monospace; color appears only in the yaml/.env highlighting and the
+       green hand-drawn marks. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&display=swap" rel="stylesheet" />
   <style>
     :root {
       color-scheme: light dark;
@@ -129,7 +134,7 @@
 
     /* one-time hand-drawn invite circle around a checkbox */
     .try-wrap {
-      position: absolute; left: 50%; top: 50%; width: 2.1rem; height: 1.8rem;
+      position: absolute; left: 50%; top: 50%; width: 3.1rem; height: 2.1rem;
       transform: translate(-50%, -50%); pointer-events: none;
       animation: try-fade 4.5s ease-in-out infinite;
     }
@@ -161,6 +166,9 @@
       font-family: var(--mono); font-size: .9rem; line-height: 1.55;
       white-space: pre-wrap; word-break: break-word;
     }
+    /* the workflow step is real yaml: keep lines verbatim and scroll on
+       overflow rather than wrapping (wrapping would distort indentation). */
+    pre.out#yaml { white-space: pre; word-break: normal; }
     .err {
       color: #fff; background: #c0392b; border-radius: 6px;
       padding: .55rem .75rem; margin-top: .8rem; font-size: .9rem;
@@ -182,6 +190,15 @@
       .hl-punct { color: #6e7781; }
       .hl-comment { color: #6e7781; }
     }
+    .hl-dim { color: #8b949e; }
+    @media (prefers-color-scheme: dark) { .hl-dim { color: #6e7781; } }
+    /* green hand-drawn underline marking the deploy command as the goal */
+    .goal { position: relative; display: inline-block; }
+    .goal .goal-line {
+      position: absolute; left: 0; bottom: -.42em; width: 100%; height: .5em;
+      overflow: visible; pointer-events: none;
+    }
+    .goal .goal-line path { fill: none; stroke: #5fd98a; stroke-width: 2.6; stroke-linecap: round; }
 
     .copy {
       font-size: .82rem; font-family: var(--sans); border: 1px solid var(--line-strong);
@@ -213,6 +230,29 @@
     table.spec th, table.spec td { text-align: left; vertical-align: top; padding: .55rem .7rem; border: 1px solid var(--line); }
     table.spec th { font-size: .85rem; background: var(--panel); }
     table.spec td code { white-space: pre-wrap; word-break: break-word; }
+
+    /* ----- pixel pass: 8-bit-flavored chrome over the monochrome palette.
+       Colors stay black/grey/white — only the yaml/.env highlighting and the
+       green hand-drawn marks carry color. Fonts sit between the old
+       Press Start 2P / VT323 and plain system: pixel display headings, with the
+       body and code left in readable system faces. --edge drives both the hard
+       outline and the offset (no-blur) shadow, so it inverts per theme. ----- */
+    :root {
+      --font-head: "Pixelify Sans", system-ui, sans-serif;
+      --edge: var(--ink);
+      --px-shadow: 4px 4px 0 var(--edge);
+      --px-shadow-sm: 3px 3px 0 var(--edge);
+    }
+    h1, h2, h3, .pill { font-family: var(--font-head); letter-spacing: 0; }
+    .panel, pre.out, dialog, .kv-list, .opt,
+    textarea, input[type=text], .btn, .copy, .pill { border-radius: 0; }
+    .panel { border: 2px solid var(--edge); box-shadow: var(--px-shadow); }
+    pre.out, textarea, input[type=text], .kv-list, .opt { border: 2px solid var(--edge); }
+    .pill { border: 2px solid var(--edge); box-shadow: var(--px-shadow-sm); color: var(--ink); }
+    .btn, .copy { border: 2px solid var(--edge); box-shadow: var(--px-shadow-sm); }
+    .btn:active, .copy:active { transform: translate(3px, 3px); box-shadow: none; }
+    dialog { border: 2px solid var(--edge); box-shadow: var(--px-shadow); }
+    table.spec th, table.spec td { border: 2px solid var(--edge); }
   </style>
 </head>
 <body>
@@ -231,26 +271,12 @@
   </header>
 
   <!-- ===================================================================
-       1. LANDING — key points (mirror README). TODO(spa): expand copy + visuals.
-       =================================================================== -->
-  <section id="landing" aria-labelledby="landing-h">
-    <h2 id="landing-h">Why genv</h2>
-    <div class="panel">
-      <ul>
-        <li><strong>Minimal coupling</strong> — update vars/secrets (keys, not just values) and rerun; no new commit to your yaml.</li>
-        <li><strong>Flexible declaration</strong> — include/exclude patterns, value-vs-content, and merge order let you shape the file.</li>
-        <li><strong>Last-win merge</strong> — ordered sources resolve conflicts predictably.</li>
-      </ul>
-    </div>
-  </section>
-
-  <!-- ===================================================================
-       2. PLAYGROUND — action inputs -> engine sources -> live .env.
+       1. PLAYGROUND — action inputs -> engine sources -> live .env.
        Uses the published engine jsr:@kindkitchen/genv via esm.sh; the
        from_action mapping mirrors parity/adapter.ts.
        =================================================================== -->
   <section id="playground" aria-labelledby="play-h">
-    <h2 id="play-h">Playground</h2>
+    <h2 id="play-h">Suppose this is your GutHib repo's settings</h2>
     <p class="hint" style="margin:-.6rem 0 1.2rem">
       Set up repository <code>vars</code> and <code>secrets</code> like you would
       on GitHub, tweak the options, and watch the workflow step and resulting
@@ -322,6 +348,20 @@
       </div>
     </form>
   </dialog>
+
+  <!-- ===================================================================
+       2. WHY GENV — key points (mirror README). TODO(spa): expand copy + visuals.
+       =================================================================== -->
+  <section id="landing" aria-labelledby="landing-h">
+    <h2 id="landing-h">Why genv</h2>
+    <div class="panel">
+      <ul>
+        <li><strong>Minimal coupling</strong> — update vars/secrets (keys, not just values) and rerun; no new commit to your yaml.</li>
+        <li><strong>Flexible declaration</strong> — include/exclude patterns, value-vs-content, and merge order let you shape the file.</li>
+        <li><strong>Last-win merge</strong> — ordered sources resolve conflicts predictably.</li>
+      </ul>
+    </div>
+  </section>
 
   <!-- ===================================================================
        3. DOCUMENTATION — manual prose + a generated "Full spec" from action.yml.
@@ -435,6 +475,7 @@
     expr: (t) => `<span class="hl-expr">${esc(t)}</span>`,
     punct: (t) => `<span class="hl-punct">${esc(t)}</span>`,
     comment: (t) => `<span class="hl-comment">${esc(t)}</span>`,
+    dim: (t) => `<span class="hl-dim">${esc(t)}</span>`,
   };
 
   function hl_dotenv(text) {
@@ -469,15 +510,33 @@
     }
     const dc = opt_on("dotenv_content") ? opt_raw("dotenv_content") : "";
 
-    const lines = [HL.punct("- ") + HL.key("uses") + HL.punct(":") + " " + HL.str("kindkitchen/genv@" + VERSION)];
+    // Muted scaffolding (black/white) frames the genv step so the fragment reads
+    // as a full workflow; the genv step keeps its colors as the focus, and the
+    // downstream deploy step consuming the generated .env is marked as the goal.
+    const lines = [
+      HL.dim("name: deploy"),
+      HL.dim("on: push"),
+      HL.dim("jobs:"),
+      HL.dim("  deploy:"),
+      HL.dim("    runs-on: ubuntu-latest"),
+      HL.dim("    steps:"),
+      "      " + HL.punct("- ") + HL.key("uses") + HL.punct(":") + " " + HL.str("kindkitchen/genv@" + VERSION),
+    ];
     if (items.length || dc) {
-      lines.push("  " + HL.key("with") + HL.punct(":"));
-      for (const [k, v] of items) lines.push("    " + HL.key(k) + HL.punct(":") + " " + yaml_value_html(v));
+      lines.push("        " + HL.key("with") + HL.punct(":"));
+      for (const [k, v] of items) lines.push("          " + HL.key(k) + HL.punct(":") + " " + yaml_value_html(v));
       if (dc) {
-        lines.push("    " + HL.key("dotenv_content") + HL.punct(":") + " " + HL.punct("|"));
-        for (const l of dc.replace(/\n$/, "").split("\n")) lines.push("      " + esc(l));
+        lines.push("          " + HL.key("dotenv_content") + HL.punct(":") + " " + HL.punct("|"));
+        for (const l of dc.replace(/\n$/, "").split("\n")) lines.push("            " + esc(l));
       }
     }
+    lines.push("      " + HL.dim("- name: deploy"));
+    lines.push(
+      "        " + HL.dim("run: ") + "deno run " +
+      `<span class="goal">--env-file=.env` +
+      `<svg class="goal-line" viewBox="0 0 120 14" aria-hidden="true"><path d="M3 9 C28 3 46 12 64 7 C82 2 100 11 117 6"/></svg>` +
+      `</span>  ` + HL.comment("# the .env genv generated above"),
+    );
     return lines.join("\n");
   }
 
@@ -513,12 +572,8 @@
   }
 
   // --- build the options accordion -------------------------------------------
-  // A one-time hand-drawn circle invites the first toggle; once the user acts
-  // on it, it is dismissed forever (persisted).
-  const TRY_KEY = "genv_try_content_from_vars";
-  let try_done = false;
-  try { try_done = localStorage.getItem(TRY_KEY) === "1"; } catch { /* private mode */ }
-
+  // A hand-drawn circle invites the first toggle of the content_from_vars
+  // option; it is removed as soon as the user acts on that checkbox.
   const TRY_CIRCLE =
     `<span class="try-wrap" id="try_circle" aria-hidden="true">` +
     `<svg viewBox="0 0 90 60"><path d="M45 8 C22 4 8 18 11 32 C14 47 40 54 60 50 C80 46 84 30 76 18 C70 9 54 6 40 10"/></svg>` +
@@ -528,7 +583,7 @@
     const field = o.multiline
       ? `<textarea id="opt_${o.key}" spellcheck="false" rows="3"></textarea>`
       : `<input id="opt_${o.key}" type="text" spellcheck="false" />`;
-    const circle = o.invite && !try_done ? TRY_CIRCLE : "";
+    const circle = o.invite ? TRY_CIRCLE : "";
     return `<details class="opt"${o.open ? " open" : ""}><summary>` +
       `<span class="chk-wrap"><input type="checkbox" class="opt-toggle" id="chk_${o.key}" title="toggle this option's effect" />${circle}</span>` +
       `<code>${o.key}</code> <span class="hint">${o.hint}</span></summary>` +
@@ -538,7 +593,6 @@
   function dismiss_try() {
     const c = $("try_circle");
     if (c) c.remove();
-    try { localStorage.setItem(TRY_KEY, "1"); } catch { /* private mode */ }
   }
 
   for (const o of OPTIONS) {
