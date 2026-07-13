@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="color-scheme" content="light dark" />
   <title>genv — generate dotenv from GitHub vars and secrets</title>
   <meta name="description" content="genv is a GitHub Action that computes a dotenv file from your repository vars and secrets following a flexible merge strategy. Try it live." />
@@ -57,15 +57,23 @@
       font-family: var(--sans); font-size: 1rem; line-height: 1.55;
       -webkit-font-smoothing: antialiased;
     }
-    .wrap { max-width: 64rem; margin-inline: auto; padding: 1.5rem 1.25rem 5rem; }
+    .wrap {
+      max-width: 64rem; margin-inline: auto; padding: 1.5rem 1.25rem 5rem;
+      padding-right: max(1.25rem, env(safe-area-inset-right));
+      padding-left: max(1.25rem, env(safe-area-inset-left));
+      padding-bottom: max(5rem, env(safe-area-inset-bottom));
+    }
 
     header.hero { padding: 3rem 0 1rem; }
-    header.hero h1 { font-size: clamp(2.2rem, 7vw, 3.2rem); margin: .6rem 0 0; letter-spacing: -.02em; }
+    header.hero h1 {
+      display: flex; align-items: baseline; flex-wrap: wrap; gap: .35rem 1.1rem;
+      font-size: clamp(2.2rem, 7vw, 3.2rem); margin: .6rem 0 0; letter-spacing: -.02em;
+    }
     header.hero .tag { color: var(--muted); font-size: 1.1rem; margin-top: .2rem; }
     header.hero .lead { max-width: 44rem; margin: 1rem 0 0; color: var(--ink); font-size: 1.1rem; }
     /* jump-to-docs link beside the title: inline with the heading but spaced
        off it, in the legible sans so it reads at a glance. */
-    .doc-link { font-family: var(--sans); font-size: .9rem; font-weight: 600; vertical-align: middle; margin-left: 1.1rem; white-space: nowrap; }
+    .doc-link { font-family: var(--sans); font-size: .9rem; font-weight: 600; vertical-align: middle; white-space: nowrap; }
     /* the title itself links to the repo; keep the heading look, underline on hover */
     .title-link { color: inherit; text-decoration: none; }
     .title-link:hover { text-decoration: underline; text-decoration-color: currentColor; }
@@ -83,8 +91,14 @@
       background: var(--panel); color: var(--ink);
       border: 1px solid var(--line); border-radius: 10px; padding: 1.5rem;
     }
-    .board { position: relative; display: grid; gap: 1.25rem; grid-template-columns: 1fr; }
-    @media (min-width: 56rem) { .board { grid-template-columns: 1fr 1fr; align-items: start; } }
+    .board {
+      position: relative; display: grid; gap: 1.25rem;
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .board > *, .out-col, .out-col > *, .panel { min-width: 0; }
+    @media (min-width: 56rem) {
+      .board { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+    }
 
     label { display: block; font-size: .92rem; font-weight: 600; margin: 1.1rem 0 .35rem; }
     label .hint { font-weight: 400; font-size: .82rem; color: var(--muted); }
@@ -94,8 +108,8 @@
       border: 1px solid var(--line-strong); border-radius: 6px; padding: .55rem .7rem;
     }
     textarea:focus, input[type=text]:focus { outline: 2px solid var(--ink); outline-offset: 1px; border-color: var(--ink); }
-    textarea { resize: vertical; min-height: 6.5rem; overflow: hidden; }
-    .grid2 { display: grid; gap: .25rem 1rem; grid-template-columns: 1fr 1fr; }
+    textarea { resize: vertical; min-height: 6.5rem; overflow: auto; }
+    .grid2 { display: grid; gap: .25rem 1rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
     .hint { color: var(--muted); font-weight: 400; font-size: .82rem; }
 
@@ -119,8 +133,8 @@
     .kv-row { display: flex; align-items: center; gap: .75rem; padding: .55rem .75rem; border-top: 1px solid var(--line); }
     .kv-row:first-child { border-top: 0; }
     .kv-main { min-width: 0; flex: 1; display: flex; align-items: baseline; gap: .6rem; }
-    .kv-name { font-family: var(--mono); font-weight: 600; font-size: .9rem; }
-    .kv-val { font-family: var(--mono); font-size: .85rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .kv-name { font-family: var(--mono); font-weight: 600; font-size: .9rem; overflow-wrap: anywhere; }
+    .kv-val { min-width: 0; font-family: var(--mono); font-size: .85rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     /* multi-line var values (e.g. CONFIG, a whole file fragment) show verbatim
        so the "value is content" intent reads at a glance. */
     .kv-val.kv-multiline { white-space: pre-wrap; overflow: visible; text-overflow: clip; word-break: break-word; }
@@ -140,8 +154,8 @@
     .opt > summary::-webkit-details-marker { display: none; }
     .opt > summary::before { content: "+"; color: var(--muted); font-family: var(--mono); }
     .opt[open] > summary::before { content: "\2212"; }
-    .opt > summary code { background: transparent; padding: 0; font-weight: 600; }
-    .chk-wrap { position: relative; display: inline-flex; align-items: center; flex: none; }
+    .opt > summary code { min-width: 0; background: transparent; padding: 0; font-weight: 600; overflow-wrap: anywhere; }
+    .chk-wrap { position: relative; display: inline-flex; align-items: center; flex: none; margin: 0; font-size: inherit; }
     .opt-toggle { width: 1rem; height: 1rem; margin: 0; cursor: pointer; accent-color: var(--ink); }
     .opt[data-active] > summary code { color: var(--ink); }
     .opt[data-active] > summary::after { content: "on"; font-size: .72rem; color: var(--muted); border: 1px solid var(--line-strong); border-radius: 999px; padding: 0 .4rem; }
@@ -221,10 +235,11 @@
     /* right: reactive outputs */
     .out-col { display: grid; gap: 1.25rem; align-content: start; }
     .out-head { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
-    .out-head h3 { margin: 0; }
+    .out-head h3 { min-width: 0; margin: 0; overflow-wrap: anywhere; }
     pre.out {
-      margin: .8rem 0 0; padding: 1rem; min-height: 6rem;
+      max-width: 100%; margin: .8rem 0 0; padding: 1rem; min-height: 6rem;
       background: var(--screen); color: var(--screen-ink); overflow: auto;
+      overscroll-behavior-inline: contain; -webkit-overflow-scrolling: touch;
       border-radius: 8px;
       font-family: var(--mono); font-size: .9rem; line-height: 1.55;
       white-space: pre-wrap; word-break: break-word;
@@ -280,6 +295,7 @@
     dialog {
       border: 1px solid var(--line-strong); border-radius: 10px; padding: 0;
       background: var(--panel); color: var(--ink); max-width: 30rem; width: calc(100% - 2rem);
+      max-height: calc(100vh - 2rem); max-height: calc(100dvh - 2rem); overflow: auto;
     }
     dialog::backdrop { background: rgba(0, 0, 0, .5); }
     .dlg-form { padding: 1.25rem; display: grid; gap: .35rem; }
@@ -359,8 +375,10 @@
 
     /* top-right theme switch: three palette buttons + a light/dark toggle */
     .theme-bar {
-      position: fixed; top: .6rem; right: .6rem; z-index: 50;
-      display: flex; gap: .3rem; padding: .3rem;
+      position: fixed;
+      top: max(.6rem, env(safe-area-inset-top));
+      right: max(.6rem, env(safe-area-inset-right));
+      z-index: 50; display: flex; gap: .3rem; padding: .3rem;
       background: var(--panel); border: 2px solid var(--edge); box-shadow: var(--px-shadow-sm);
     }
     .theme-bar button {
@@ -378,23 +396,85 @@
     }
     .theme-bar .gh-link:hover { background: var(--accent); color: var(--on-accent); }
     .theme-bar .gh-link:active { transform: translate(2px, 2px); }
+
+    @media (max-width: 56rem) {
+      /* Keep controls in the masthead on phones/tablets instead of obscuring
+         content while the user scrolls. */
+      .theme-bar { position: absolute; }
+      .theme-bar button { min-height: 2.3rem; }
+      .theme-bar .gh-link { min-width: 2.3rem; min-height: 2.3rem; }
+    }
+
     @media (max-width: 40rem) {
       html { font-size: 106.25%; }              /* dial back the VT323 up-scale */
-      body { overflow-x: hidden; }              /* guard against stray side-scroll */
-      .wrap { padding: 1rem .85rem 4rem; }
-      header.hero { padding: 2.2rem 0 .5rem; }
+      .wrap {
+        padding: 1rem .85rem 4rem;
+        padding-top: max(1rem, env(safe-area-inset-top));
+        padding-right: max(.85rem, env(safe-area-inset-right));
+        padding-left: max(.85rem, env(safe-area-inset-left));
+        padding-bottom: max(4rem, env(safe-area-inset-bottom));
+      }
+      header.hero { padding: 3.25rem 0 .5rem; }
+      header.hero h1 { column-gap: .8rem; }
       section { margin-top: 2.5rem; }
       .panel { padding: 1rem; }
       .board { gap: 1rem; }
+      .play-section > summary { gap: .45rem; }
+      .play-section > summary h2 {
+        min-width: 0; font-size: clamp(.82rem, 4vw, 1rem); overflow-wrap: anywhere;
+      }
+      .grid2 { grid-template-columns: minmax(0, 1fr); }
       pre.out { padding: .8rem; font-size: .98rem; }
-      .cfg-head { flex-wrap: wrap; }            /* title + add button stack if tight */
+      .cfg-head { align-items: stretch; flex-direction: column; }
+      .cfg-head .btn { align-self: stretch; min-height: 2.6rem; }
       h2 .hint, h3 .hint { font-family: var(--font-body); }  /* pixel hint font is too wide for narrow rows */
-      .kv-actions button { padding: .3rem .55rem; } /* bigger tap targets */
+      .kv-row { align-items: stretch; flex-direction: column; gap: .5rem; }
+      .kv-main { width: 100%; align-items: flex-start; flex-wrap: wrap; }
+      .kv-actions { width: 100%; gap: .5rem; }
+      .kv-actions button {
+        flex: 1; min-height: 2.6rem; padding: .3rem .55rem; border-color: var(--line-strong);
+      }
+      .opt > summary { align-items: center; }
+      .opt > summary code { flex: 1 1 calc(100% - 4.5rem); font-size: .82em; }
+      .chk-wrap { min-width: 2.6rem; min-height: 2.6rem; justify-content: center; }
       .opt-toggle { width: 1.15rem; height: 1.15rem; }
-      table.spec td code { word-break: break-all; }
-      .theme-bar { top: .4rem; right: .4rem; gap: .2rem; padding: .2rem; }
-      .theme-bar button { font-size: .85rem; padding: .15rem .3rem; }
-      .theme-bar .gh-link svg { width: 15px; height: 15px; }
+      .copy { min-height: 2.6rem; }
+      #docs p, #docs li, #docs code { overflow-wrap: anywhere; }
+      .dlg-form { padding: 1rem; }
+      .dlg-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .dlg-actions .btn { min-height: 2.6rem; }
+      .theme-bar {
+        top: max(.4rem, env(safe-area-inset-top));
+        right: max(.4rem, env(safe-area-inset-right));
+        gap: .2rem; padding: .2rem;
+      }
+      .theme-bar button { min-height: 2.6rem; font-size: .95rem; padding: .2rem .4rem; }
+      .theme-bar .gh-link { min-width: 2.6rem; min-height: 2.6rem; }
+      .theme-bar .gh-link svg { width: 17px; height: 17px; }
+    }
+
+    @media (max-width: 32rem) {
+      /* Phone-sized specs read as cards; no sideways table navigation needed. */
+      .spec-wrap { overflow: visible; }
+      table.spec, table.spec tbody { display: block; width: 100%; }
+      table.spec thead {
+        position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+        overflow: hidden; clip: rect(0, 0, 0, 0); clip-path: inset(50%);
+        white-space: nowrap; border: 0;
+      }
+      table.spec tbody tr {
+        display: block; width: 100%; margin: 0 0 .8rem; border: 2px solid var(--edge);
+      }
+      table.spec tbody td { display: block; width: 100%; border: 0; padding: .65rem; }
+      table.spec tbody td + td { border-top: 1px solid var(--line-strong); }
+      table.spec tbody td::before {
+        display: block; margin-bottom: .2rem; color: var(--muted);
+        font-size: .72rem; font-weight: 700; text-transform: uppercase;
+      }
+      table.spec tbody td:nth-child(1)::before { content: "input"; }
+      table.spec tbody td:nth-child(2)::before { content: "description"; }
+      table.spec tbody td:nth-child(3)::before { content: "default"; }
+      table.spec td code { white-space: pre-wrap; word-break: break-word; }
     }
   </style>
   <script>
@@ -453,7 +533,7 @@
        =================================================================== -->
   <section id="playground" aria-labelledby="play-h">
     <details class="play-section" id="play_details" open>
-    <summary><h2 id="play-h">Suppose this is your GutHib repo's settings</h2></summary>
+    <summary><h2 id="play-h">Suppose this is your GitHub repo's settings</h2></summary>
     <p class="hint" style="margin:-.6rem 0 1.2rem">
       Set up repository <code>vars</code> and <code>secrets</code> like you would
       on GitHub, tweak the options, and watch the workflow step and resulting
@@ -977,7 +1057,7 @@
       ? `<textarea id="opt_${o.key}" spellcheck="false" rows="3"></textarea>`
       : `<input id="opt_${o.key}" type="text" spellcheck="false" />`;
     return `<details class="opt"${o.open ? " open" : ""}><summary>` +
-      `<span class="chk-wrap"><input type="checkbox" class="opt-toggle" id="chk_${o.key}" title="toggle this option's effect" /></span>` +
+      `<label class="chk-wrap"><input type="checkbox" class="opt-toggle" id="chk_${o.key}" aria-label="toggle ${o.key}" title="toggle this option's effect" /></label>` +
       `<code>${o.key}</code> <span class="hint">${o.hint}</span></summary>` +
       `<div class="opt-body">${field}</div></details>`;
   }).join("");
@@ -989,7 +1069,7 @@
 
     const chk = $("chk_" + o.key);
     chk.checked = !!o.on;
-    chk.addEventListener("click", (e) => e.stopPropagation()); // don't toggle <details>
+    chk.closest(".chk-wrap").addEventListener("click", (e) => e.stopPropagation()); // don't toggle <details>
     chk.addEventListener("change", () => {
       if (chk.checked) inp.closest(".opt").open = true; // reveal value when enabling
       // accepting the current phase's tip completes it (rainbow) and advances
